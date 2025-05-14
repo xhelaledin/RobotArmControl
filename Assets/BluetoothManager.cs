@@ -577,4 +577,7 @@ public class BluetoothManager : MonoBehaviour
         logPanel.SetActive(false);
     }
 
+    public void ResetPosition() {
+        WriteData("SERVOS:0,90,90,105");
+    }
 }
