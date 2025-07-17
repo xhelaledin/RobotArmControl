@@ -53,16 +53,6 @@ public class BluetoothManager : MonoBehaviour
     {
         // Initialize the Bluetooth adapter.
         InitBluetooth();
-
-        Scene activeScene = SceneManager.GetActiveScene();
-
-        if (activeScene.name == "SavedPositionsScene") {
-            string savedMAC = PlayerPrefs.GetString("LastConnectedMAC", "");
-            if (!string.IsNullOrEmpty(savedMAC))
-            {
-                StartConnection(savedMAC); // Your function for connecting via Bluetooth
-            }
-        }
     }
 
     /// <summary>
@@ -567,7 +557,7 @@ public class BluetoothManager : MonoBehaviour
     }
 
 
-     public void ShowLogPanel()
+    public void ShowLogPanel()
     {
         logPanel.SetActive(true);
     }

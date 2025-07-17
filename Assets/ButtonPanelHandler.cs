@@ -56,57 +56,57 @@ public class ButtonPanelHandler : MonoBehaviour
     }
 
     // This method will be called when the BluetoothButton is clicked
-    private void ShowBluetoothButton2()
+    public void ShowBluetoothButton2()
     {
         bluetoothButton2.gameObject.SetActive(true); // Show BluetoothButton2
     }
 
     // This method will be called when the SavePositionButton is clicked
-    private void ShowSavePositionButton2()
+    public void ShowSavePositionButton2()
     {
         savePositionButton2.gameObject.SetActive(true); // Show SavePositionButton2
     }
 
-     private void ShowTerminalButton2()
+    public void ShowTerminalButton2()
     {
         terminalButton2.gameObject.SetActive(true); // Show SavePositionButton2
     }
 
-      private void ShowLogButton2()
+    public void ShowLogButton2()
     {
         logButton2.gameObject.SetActive(true); // Show SavePositionButton2
     }
 
-    private void ShowKeyButton2()
+    public void ShowKeyButton2()
     {
         keyButton2.gameObject.SetActive(true); // Show SavePositionButton2
     }
 
     // This method will be called when the Bluetooth close button is clicked
-    private void HideBluetoothButton2()
+    public void HideBluetoothButton2()
     {
         bluetoothButton2.gameObject.SetActive(false); // Hide BluetoothButton2
     }
 
     // This method will be called when the SavePosition close button is clicked
-    private void HideSavePositionButton2()
+    public void HideSavePositionButton2()
     {
         savePositionButton2.gameObject.SetActive(false); // Hide SavePositionButton2
     }
 
 
-    private void HideTerminalButton2()
+    public void HideTerminalButton2()
     {
         terminalButton2.gameObject.SetActive(false); // Hide SavePositionButton2
     }
 
 
-    private void HideLogButton2()
+    public void HideLogButton2()
     {
         logButton2.gameObject.SetActive(false); // Hide SavePositionButton2
     }
 
-    private void HideKeyButton2()
+    public void HideKeyButton2()
     {
         keyButton2.gameObject.SetActive(false); // Hide SavePositionButton2
     }

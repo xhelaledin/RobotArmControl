@@ -19,7 +19,7 @@ public class ListManager : MonoBehaviour
         PopulateList();
     }
 
-    private void PopulateList()
+    public void PopulateList()
     {
         // Destroy old items
         foreach (Transform child in content)
