@@ -11,34 +11,35 @@ public class SaveManager : MonoBehaviour
     public TMP_InputField inputField;
     public Button popupSaveButton, popupCancelButton;
     public Slider[] sliders;
-    public TMP_Text toastText;
-    public float toastDuration = 2f;
 
-    public Button setButton;    // ✅ Button for "Close"
-    public Button unsetButton;  // ✅ Button for "Open"
+    public Button closeButton;    // ✅ Button for "Close"
+    public Button openButton;  // ✅ Button for "Open"
 
     private string defaultNamePrefix = "Position";
-    private Coroutine toastCoroutine;
+
+    private int selectedModelIndex;  // Store selected model index
 
     void Start()
     {
         popupPanel.SetActive(false);
 
-        if (toastText != null)
-        {
-            toastText.gameObject.SetActive(false);
-            var cg = toastText.GetComponent<CanvasGroup>();
-            if (cg != null) cg.alpha = 0;
-        }
 
         // ✅ Hook button listeners
-        if (setButton != null)
-            setButton.onClick.AddListener(SetButtonPressed);
+        if (closeButton != null)
+            closeButton.onClick.AddListener(CloseButtonPressed);
 
-        if (unsetButton != null)
-            unsetButton.onClick.AddListener(UnsetButtonPressed);
+        if (openButton != null)
+            openButton.onClick.AddListener(OpenButtonPressed);
 
-        Debug.Log("Start(): SetButtonPressed = " + PlayerPrefs.GetInt("SetButtonPressed", 0));
+        // Get the selected model index from PlayerPrefs
+        selectedModelIndex = PlayerPrefs.GetInt("SelectedModelIndex", 0);
+        Debug.Log("Selected Model Index: " + selectedModelIndex);
+    }
+
+    private string GetSaveKey(string saveName)
+    {
+        // Use selectedModelIndex in the key to separate saves for each model
+        return $"SavedArray_{selectedModelIndex}_{saveName}";
     }
 
     public void OpenPopup()
@@ -49,7 +50,6 @@ public class SaveManager : MonoBehaviour
 
     public void StartSavingProcess()
     {
-        Debug.Log("StartSavingProcess clicked! ✅");
         string baseName = inputField.text.Trim();
         string initialName = string.IsNullOrWhiteSpace(baseName) ? GenerateDefaultName() : baseName;
 
@@ -58,9 +58,7 @@ public class SaveManager : MonoBehaviour
 
         SaveArray(saveName);
 
-        //ShowToast($"Saved as \"{saveName}\"");
         Toast("Saved as: " + saveName);
-
         ClosePopup();
     }
 
@@ -96,7 +94,7 @@ public class SaveManager : MonoBehaviour
 
     private HashSet<string> GetAllSaveNames()
     {
-        string raw = PlayerPrefs.GetString("SaveList", "");
+        string raw = PlayerPrefs.GetString($"SaveList_{selectedModelIndex}", "");
         return new HashSet<string>(raw.Split(',').Where(n => !string.IsNullOrWhiteSpace(n)));
     }
 
@@ -107,45 +105,40 @@ public class SaveManager : MonoBehaviour
         if (!names.Contains(saveName))
         {
             names.Add(saveName);
-            PlayerPrefs.SetString("SaveList", string.Join(",", names));
+            PlayerPrefs.SetString($"SaveList_{selectedModelIndex}", string.Join(",", names));
         }
 
-        int[] saveValues = new int[4];
-        for (int i = 0; i < 3; i++)
+        int[] saveValues = new int[5];
+        for (int i = 0; i < 5; i++)
         {
             saveValues[i] = Mathf.RoundToInt(sliders[i].value);
         }
 
-        // ✅ Use saved button state
-        bool setPressed = PlayerPrefs.GetInt("SetButtonPressed", 0) == 1;
-        saveValues[3] = setPressed ? 1 : 0;
-
-        Debug.Log($"💾 Reading SetButtonPressed: {PlayerPrefs.GetInt("SetButtonPressed", 0)} → Saving as {saveValues[3]}");
+        bool setPressed = PlayerPrefs.GetInt("CloseButtonPressed", 0) == 1;
+        saveValues[4] = setPressed ? 1 : 0;
 
         ArmSaveData data = new ArmSaveData { values = saveValues };
         string json = JsonUtility.ToJson(data);
 
-        PlayerPrefs.SetString($"SavedArray_{saveName}", json);
+        PlayerPrefs.SetString(GetSaveKey(saveName), json);
         PlayerPrefs.Save();
 
-        Debug.Log($"✅ Saved array for \"{saveName}\": {string.Join(", ", saveValues)}");
+        Debug.Log($"Saved array for \"{saveName}\": {string.Join(", ", saveValues)}");
     }
 
     public void ClosePopup()
     {
-        Debug.Log("ClosePopup clicked! ✅");
         popupPanel.SetActive(false);
     }
 
-    public void ShowToast(string message)
+
+    public void UpdateSelectedModelIndex(int newIndex)
     {
-        if (toastCoroutine != null) StopCoroutine(toastCoroutine);
-        toastCoroutine = StartCoroutine(ShowToastCoroutine(message));
+        selectedModelIndex = newIndex;
+        Debug.Log("Selected Model Index Updated in SaveManager: " + selectedModelIndex);
     }
 
-    /// <summary>
-    /// Displays a Toast using Android's Toast API.
-    /// </summary>
+
     public void Toast(string message)
     {
         if (Application.platform != RuntimePlatform.Android)
@@ -166,52 +159,15 @@ public class SaveManager : MonoBehaviour
         }));
     }
 
-    private IEnumerator ShowToastCoroutine(string message)
+    private void CloseButtonPressed()
     {
-        toastText.text = message;
-        toastText.gameObject.SetActive(true);
-
-        CanvasGroup canvasGroup = toastText.GetComponent<CanvasGroup>();
-        if (canvasGroup == null)
-        {
-            canvasGroup = toastText.gameObject.AddComponent<CanvasGroup>();
-        }
-
-        float fadeTime = 0.3f;
-
-        for (float t = 0; t < fadeTime; t += Time.deltaTime)
-        {
-            canvasGroup.alpha = t / fadeTime;
-            yield return null;
-        }
-
-        canvasGroup.alpha = 1;
-        yield return new WaitForSeconds(toastDuration);
-
-        for (float t = 0; t < fadeTime; t += Time.deltaTime)
-        {
-            canvasGroup.alpha = 1 - (t / fadeTime);
-            yield return null;
-        }
-
-        canvasGroup.alpha = 0;
-        toastText.gameObject.SetActive(false);
+        PlayerPrefs.SetInt("OpenCloseButtonPressed", 1);
+        PlayerPrefs.Save();
     }
 
-    // ✅ Called automatically by buttons (wired in Start)
-
-    private void SetButtonPressed()
+    private void OpenButtonPressed()
     {
-        PlayerPrefs.SetInt("SetButtonPressed", 1);
+        PlayerPrefs.SetInt("OpenCloseButtonPressed", 0);
         PlayerPrefs.Save();
-        Debug.Log("🔴 SetButtonPressed() called — SetButtonPressed = 1 (Closed)");
-    }
-
-    private void UnsetButtonPressed()
-    {
-        PlayerPrefs.SetInt("SetButtonPressed", 0);
-        PlayerPrefs.Save();
-        Debug.Log("🟢 UnsetButtonPressed() called — SetButtonPressed = 0 (Open)");
     }
 }
-

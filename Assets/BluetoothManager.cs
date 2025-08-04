@@ -16,23 +16,20 @@ public class BluetoothManager : MonoBehaviour
     // UI elements (all use TextMeshProUGUI)
     public TextMeshProUGUI dataToSend; // Data to be sent
     public TextMeshProUGUI receivedData; // Incoming data display
-    public TextMeshProUGUI connectionStatus; // Bluetooth status
-    public TextMeshProUGUI scanningStatusText; // Scanning Status
-    public TMP_InputField inputFieldToSend;  // Reference to the TMP_InputField inside the panel
-    public GameObject bluetoothMainPanel; // Main panel that opens from the main page (contains the Connect button)
-    public GameObject sendPanel;  // Reference to the send panel
-    public GameObject bluetoothDevicePanel; // Panel that displays the list of paired devices
-    public GameObject bluetoothScanPanel; // Single UI panel for scanning results (USED NOW)
-    public GameObject devicesListContainer; // Container (Content of Scroll View) for paired devices list
-    public GameObject scannedDevicesListContainer; // Container (Content of Scroll View) for scanned devices list
-    public GameObject logPanel; // Assign the UI panel in Inspector
-    public GameObject deviceMACTextPrefab; // Prefab for each paired/scanned device button
+    public TextMeshProUGUI connectionStatus; 
+    public TextMeshProUGUI scanningStatusText; 
+    public TMP_InputField inputFieldToSend;
+    public GameObject bluetoothMainPanel;
+    public GameObject sendPanel;
+    public GameObject bluetoothDevicePanel; 
+    public GameObject bluetoothScanPanel;
+    public GameObject devicesListContainer;
+    public GameObject scannedDevicesListContainer; 
+    public GameObject deviceMACTextPrefab;
 
-    // To store MAC addresses dynamically
     private Dictionary<string, GameObject> scannedDevices = new Dictionary<string, GameObject>();
 
 
-    // Bluetooth connection status and selected device information
     private bool isConnected = false;
 
     // Android API objects
@@ -45,9 +42,9 @@ public class BluetoothManager : MonoBehaviour
     // Standard SPP UUID (Bluetooth Serial Port Profile)
     private string SPP_UUID = "00001101-0000-1000-8000-00805f9b34fb";
 
-    public AesEncryptor aesEncryptor; // Assign in Inspector
+    public EncryptionManager encryptionManager;
 
-    public BluetoothLoggerUI logger; // Assign in Inspector
+    public BluetoothLoggerUI logger;
 
     void Start()
     {
@@ -100,7 +97,6 @@ public class BluetoothManager : MonoBehaviour
 
     /// <summary>
     /// Opens the main Bluetooth panel.
-    /// (Hook this up to your main page Bluetooth button.)
     /// </summary>
     public void ShowBluetoothPanel()
     {
@@ -126,7 +122,6 @@ public class BluetoothManager : MonoBehaviour
     /// <summary>
     /// Called when the Connect button inside the main panel is pressed.
     /// Opens the device list panel.
-    /// (Hook this function to the Connect button’s OnClick event.)
     /// </summary>
     public void OnConnectButtonPressed()
     {
@@ -285,59 +280,65 @@ public class BluetoothManager : MonoBehaviour
         SaveDeviceMAC(deviceAddress);
     }
 
+    // This function will be called by Java class whenever BT data is received,
+    // DO NOT CHANGE ITS NAME OR IT WILL NOT BE FOUND BY THE JAVA CLASS
+    public void ReadData(string data)
+    {
+        Debug.Log("BT Stream: " + data);
+        receivedData.text = data;
+    }
+
     /// <summary>
     /// Writes data from the dataToSend TMP text component to the connected device.
     /// </summary>
     public void WriteData(string plainText)
-{
-    if (Application.platform != RuntimePlatform.Android || !isConnected)
-        return;
-
-    if (string.IsNullOrWhiteSpace(plainText))
     {
-        Toast("No data to send");
-        return;
-    }
+        if (Application.platform != RuntimePlatform.Android || !isConnected)
+            return;
 
-    try
-    {
-        // Encrypt the string
-        string encryptedHex = aesEncryptor.EncryptString(plainText);
-
-        // Convert encrypted hex to bytes
-        byte[] dataBytes = Encoding.UTF8.GetBytes(encryptedHex);
-
-        // Append newline to indicate end of message
-        byte[] final = new byte[dataBytes.Length + 1];
-        Buffer.BlockCopy(dataBytes, 0, final, 0, dataBytes.Length);
-        final[final.Length - 1] = (byte)'\n';
-
-        // Write to Bluetooth output stream
-        AndroidJavaObject outputStream = bluetoothSocket.Call<AndroidJavaObject>("getOutputStream");
-        outputStream.Call("write", final);
-        outputStream.Call("flush");
-
-        Toast("Encrypted + Sent: " + plainText + " as " + encryptedHex);
-
-        if (logger != null)
+        if (string.IsNullOrWhiteSpace(plainText))
         {
-            logger.LogMessage($"Sent: {plainText}");
-            Debug.Log("[BluetoothManager] Logger is assigned and message logged.");
-        }
-        else
-        {
-            Debug.LogWarning("[BluetoothManager] Logger is null. Message not logged.");
+            Toast("No data to send");
+            return;
         }
 
-    }
-    catch (Exception ex)
-    {
-        Debug.LogError("Bluetooth Write Failed: " + ex);
-        Toast("Write failed: " + ex.Message);
-    }
-}
+        try
+        {
+            // Encrypt the string
+            string encryptedHex = encryptionManager.EncryptString(plainText);
 
+            // Convert encrypted hex to bytes
+            byte[] dataBytes = Encoding.UTF8.GetBytes(encryptedHex);
 
+            // Append newline to indicate end of message
+            byte[] final = new byte[dataBytes.Length + 1];
+            Buffer.BlockCopy(dataBytes, 0, final, 0, dataBytes.Length);
+            final[final.Length - 1] = (byte)'\n';
+
+            // Write to Bluetooth output stream
+            AndroidJavaObject outputStream = bluetoothSocket.Call<AndroidJavaObject>("getOutputStream");
+            outputStream.Call("write", final);
+            outputStream.Call("flush");
+
+            Toast("Encrypted + Sent: " + plainText + " as " + encryptedHex);
+
+            if (logger != null)
+            {
+                logger.LogMessage($"Sent: {plainText}");
+                Debug.Log("[BluetoothManager] Logger is assigned and message logged.");
+            }
+            else
+            {
+                Debug.LogWarning("[BluetoothManager] Logger is null. Message not logged.");
+            }
+
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError("Bluetooth Write Failed: " + ex);
+            Toast("Write failed: " + ex.Message);
+        }
+    }
 
 
     /// <summary>
@@ -513,13 +514,13 @@ public class BluetoothManager : MonoBehaviour
     // Show the send panel
     public void ShowSendPanel()
     {
-        sendPanel.SetActive(true);  // Show the panel
+        sendPanel.SetActive(true);
     }
 
     // Hide the send panel
     public void HideSendPanel()
     {
-        sendPanel.SetActive(false);  // Hide the panel
+        sendPanel.SetActive(false);
     }
 
     // Send the data and close the panel
@@ -545,7 +546,7 @@ public class BluetoothManager : MonoBehaviour
     public void CancelSend()
     {
         inputFieldToSend.text = "";  // Clear the input field
-        HideSendPanel();  // Close the panel
+        HideSendPanel();
     }
 
     
@@ -556,16 +557,6 @@ public class BluetoothManager : MonoBehaviour
         PlayerPrefs.Save();
     }
 
-
-    public void ShowLogPanel()
-    {
-        logPanel.SetActive(true);
-    }
-
-    public void HideLogPanel()
-    {
-        logPanel.SetActive(false);
-    }
 
     public void ResetPosition() {
         WriteData("SERVOS:0,90,90,105");
