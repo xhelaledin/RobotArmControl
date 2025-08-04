@@ -5,13 +5,13 @@ using UnityEngine.UI;
 
 public class BluetoothLoggerUI : MonoBehaviour
 {
+    public GameObject logPanel;
     public GameObject logPrefab;  // Assign the LogEntry prefab in the Inspector (must have a TextMeshProUGUI component)
     public Transform logContainer;  // Assign the Content GameObject in the Inspector (inside the ScrollRect)
     private List<GameObject> logEntries = new List<GameObject>();
 
     private void Start()
     {
-        // Check if everything is assigned
         if (logPrefab == null)
             Debug.LogError("[BluetoothLoggerUI] logPrefab is not assigned in the Inspector.");
         else
@@ -54,7 +54,7 @@ public class BluetoothLoggerUI : MonoBehaviour
         Debug.Log($"[BluetoothLoggerUI] Added log entry. Total entries: {logEntries.Count}");
 
         // Scroll to the bottom
-        //ScrollToBottom();
+        ScrollToBottom();
     }
 
     private void ScrollToBottom()
@@ -83,5 +83,15 @@ public class BluetoothLoggerUI : MonoBehaviour
 
         logEntries.Clear();
         Debug.Log("[BluetoothLoggerUI] Log entries cleared.");
+    }
+
+    public void ShowLogPanel()
+    {
+        logPanel.SetActive(true);
+    }
+
+    public void HideLogPanel()
+    {
+        logPanel.SetActive(false);
     }
 }
