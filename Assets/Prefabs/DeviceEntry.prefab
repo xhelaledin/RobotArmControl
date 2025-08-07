@@ -160,7 +160,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   nameLabel: {fileID: 2423348928517489381}
   macLabel: {fileID: 8171285921784859276}
-  selectedLabel: {fileID: 6291684876556642813}
+  connectionStatusText: {fileID: 6291684876556642813}
   backgroundImage: {fileID: 779121372730159695}
   button: {fileID: 7328698005698399777}
 --- !u!1 &3334785833856693959

@@ -17,6 +17,7 @@ public class Terminal : MonoBehaviour, IDeselectHandler
     public GameObject dateGroupPrefab;
     public ScrollRect scrollRect;
 
+
     [Header("World Space Keyboard Handling")]
     public Canvas worldCanvas;              // Assign your World Space Canvas here
     public RectTransform inputBarTransform; // Assign Input Bar RectTransform here
@@ -30,6 +31,9 @@ public class Terminal : MonoBehaviour, IDeselectHandler
 
     // Flag to allow defocus (used when you explicitly want to hide keyboard)
     private bool allowDefocus = false;
+
+    [Header("Connection to Other Script")]
+    public BluetoothManager bluetoothManager;
 
     private void Start()
     {
@@ -78,6 +82,8 @@ public class Terminal : MonoBehaviour, IDeselectHandler
     {
         string message = inputField.text;
         if (string.IsNullOrWhiteSpace(message)) return;
+
+        bluetoothManager.WriteData(message);
 
         LogSent(message);
         inputField.text = "";

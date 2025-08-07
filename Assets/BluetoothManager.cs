@@ -12,10 +12,6 @@ public class BluetoothManager : MonoBehaviour
 {
     [Header("UI Elements")]
 
-    //public Transform listAContainer;
-    //public Transform listBContainer;
-
-
     public TextMeshProUGUI connectionStatus;
 
     public GameObject scanningAnimation;
@@ -57,6 +53,21 @@ public class BluetoothManager : MonoBehaviour
 
     private string lastConnectedMAC = "";
     private string lastConnectedName = "";
+
+    private string lastDisconnectedMAC = "";
+
+
+    private List<string> lastPairedList = new List<string>();
+    private List<string> lastScannedList = new List<string>();
+
+    private void Awake()
+    {
+        lastConnectedMAC = "";
+        lastConnectedName = "";
+        PlayerPrefs.DeleteKey("LastConnectedMAC");
+        PlayerPrefs.DeleteKey("LastConnectedName");
+        PlayerPrefs.Save();
+    }
 
     void Start()
     {
@@ -227,7 +238,7 @@ public class BluetoothManager : MonoBehaviour
         if (scannedDeviceList.Contains(entry)) return;
 
         scannedDeviceList.Add(entry);
-        anyDeviceFound = true; // ✅ we found at least one device
+        anyDeviceFound = true;
 
         PopulateList(scannedDeviceList, scannedContentContainer, OnScannedDeviceSelected);
     }
@@ -236,7 +247,7 @@ public class BluetoothManager : MonoBehaviour
     public void ScanStatus(string status)
     {
         Debug.Log("ScanStatus: " + status);
-        Toast("Scan Status: " + status);
+        //Toast("Scan Status: " + status);
 
         if (status == "stopped" || status == "completed")
         {
@@ -247,7 +258,6 @@ public class BluetoothManager : MonoBehaviour
 
             PopulateList(scannedDeviceList, scannedContentContainer, OnScannedDeviceSelected);
 
-            // ✅ Show "no devices" only if nothing was found during scan
             if (!anyDeviceFound && noDeviceEntryObject != null)
             {
                 noDeviceEntryObject.SetActive(true);
@@ -258,20 +268,32 @@ public class BluetoothManager : MonoBehaviour
 
     public void OnDeviceSelected(string address)
     {
-        StartConnection(address);
+        if (isConnected && address == lastConnectedMAC)
+        {
+            StopConnection();
+        }
+        else
+        {
+            StartConnection(address);
+        }
     }
 
     public void OnScannedDeviceSelected(string address)
     {
-        StartConnection(address);
+        if (isConnected && address == lastConnectedMAC)
+        {
+            StopConnection();
+        }
+        else
+        {
+            StartConnection(address);
+        }
     }
 
-    /// <summary>
-    /// The old connection logic is preserved here with socket connection, UUID, and try-catch.
-    /// It calls the AndroidJavaObject device.createRfcommSocketToServiceRecord and connects.
-    /// </summary>
+
     public void StartConnection(string deviceAddress)
     {
+        lastDisconnectedMAC = "";
         if (Application.platform != RuntimePlatform.Android)
         {
             Toast("Platform not Android.");
@@ -352,30 +374,70 @@ public class BluetoothManager : MonoBehaviour
         }
     }
 
+
     public void StopConnection()
+{
+    if (Application.platform != RuntimePlatform.Android) return;
+
+    string disconnectedDeviceName = lastConnectedName;
+    lastDisconnectedMAC = lastConnectedMAC;  // Remember disconnected MAC for UI
+    lastConnectedMAC = "";
+    lastConnectedName = "";
+    isConnected = false;
+
+    UpdateConnectionStatus("Status: Disconnected");
+    Toast($"Disconnected from {disconnectedDeviceName}");
+
+    try
     {
-        if (Application.platform != RuntimePlatform.Android) return;
-
-        try
+        if (bluetoothSocket != null)
         {
-            if (bluetoothSocket != null)
-            {
-                bluetoothSocket.Call("close");
-                bluetoothSocket = null;
-                isConnected = false;
-                Toast("Disconnected");
-                UpdateConnectionStatus("Status: Disconnected");
-            }
+            bluetoothSocket.Call("close");
+            bluetoothSocket = null;
         }
-        catch (Exception ex)
-        {
-            Toast("Disconnect failed: " + ex.Message);
-            Debug.LogError("Disconnect failed: " + ex);
-        }
+    }
+    catch (Exception ex)
+    {
+        Toast("Disconnect failed: " + ex.Message);
+        Debug.LogError("Disconnect failed: " + ex);
+    }
 
-        // Also call Java side to stop connection if applicable
+    try
+    {
         BluetoothConnector.CallStatic("StopConnection");
     }
+    catch (Exception ex)
+    {
+        Debug.LogWarning("Java StopConnection call failed (ignored): " + ex.Message);
+    }
+
+    // Refresh UI lists to update connection labels
+    PopulateList(lastPairedList, pairedContentContainer, OnDeviceSelected);
+    PopulateList(lastScannedList, scannedContentContainer, OnDeviceSelected);
+}
+
+
+
+
+
+
+    private void ClearConnectedLabel(Transform container, string macAddress)
+    {
+        foreach (Transform child in container)
+        {
+            var comp = child.GetComponent<DeviceEntry>();
+            if (comp != null && comp.MACAddress == macAddress)
+            {
+                comp.SetConnectionStatus("");
+            }
+        }
+    }
+
+
+
+
+
+
 
     // Called by Java when data is received
     public void ReadData(string data)
@@ -490,15 +552,17 @@ public class BluetoothManager : MonoBehaviour
         return mac; // fallback
     }
 
-    // 
-    
-        private void PopulateList(List<string> devices, Transform container, Action<string> onDeviceSelected)
+    private void PopulateList(List<string> devices, Transform container, Action<string> onDeviceSelected)
     {
+        if (container == pairedContentContainer)
+            lastPairedList = new List<string>(devices);
+        else if (container == scannedContentContainer)
+            lastScannedList = new List<string>(devices);
+
         foreach (Transform child in container)
             Destroy(child.gameObject);
 
         int count = devices.Count;
-        bool isPairedList = (container == pairedContentContainer);
 
         for (int i = 0; i < count; i++)
         {
@@ -516,14 +580,30 @@ public class BluetoothManager : MonoBehaviour
             else if (i == count - 1) bg = lastBackground;
             else bg = middleBackground;
 
-            bool isSelected = isPairedList && macAddress == lastConnectedMAC;
-
+            bool isSelected = macAddress == lastConnectedMAC;
             comp.Setup(deviceName, macAddress, bg, () => onDeviceSelected(macAddress), isSelected);
+
+            if (isSelected)
+            {
+                comp.SetConnectionStatus("Connected", Color.green);
+            }
+            else if (macAddress == lastDisconnectedMAC)
+            {
+                comp.SetConnectionStatus("Disconnected", Color.red);
+                // Clear lastDisconnectedMAC after showing once
+                lastDisconnectedMAC = "";
+            }
+            else
+            {
+                comp.SetConnectionStatus("");
+            }
         }
 
         LayoutRebuilder.ForceRebuildLayoutImmediate((RectTransform)container);
         StartCoroutine(ResizeParentHeight(container));
     }
+
+
 
 
     // Optional: auto-resize wrapper height (if using a max height cap)
