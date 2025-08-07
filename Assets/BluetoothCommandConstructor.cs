@@ -102,8 +102,8 @@ public class BluetoothCommandConstructor : MonoBehaviour
     }
     public void OnSaveButtonCommandClicked()
     {
-        saveCommand = saveCommandInputField.text;
-        if (string.IsNullOrEmpty(saveCommand)) closeCommand = "SAVE";
+        //saveCommand = saveCommandInputField.text;
+        //if (string.IsNullOrEmpty(saveCommand)) closeCommand = "SAVE";
     }
 
     public void OnConfirmButtonClicked()

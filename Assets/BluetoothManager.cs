@@ -1,65 +1,74 @@
-using System.Collections;
+using System;
 using System.Collections.Generic;
+using System.Text;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.Android;
-using TMPro; // For TextMeshPro components
-using System.Text; // For Encoding
-using UnityEngine.SceneManagement;
-using System;
-
+using TMPro;
+using UnityEngine.EventSystems;
+using System.Collections;
 
 public class BluetoothManager : MonoBehaviour
 {
+    [Header("UI Elements")]
 
-        
-    // UI elements (all use TextMeshProUGUI)
-    public TextMeshProUGUI dataToSend; // Data to be sent
-    public TextMeshProUGUI receivedData; // Incoming data display
-    public TextMeshProUGUI connectionStatus; 
-    public TextMeshProUGUI scanningStatusText; 
-    public TMP_InputField inputFieldToSend;
+    //public Transform listAContainer;
+    //public Transform listBContainer;
+
+
+    public TextMeshProUGUI connectionStatus;
+
+    public GameObject scanningAnimation;
     public GameObject bluetoothMainPanel;
-    public GameObject sendPanel;
-    public GameObject bluetoothDevicePanel; 
-    public GameObject bluetoothScanPanel;
-    public GameObject devicesListContainer;
-    public GameObject scannedDevicesListContainer; 
-    public GameObject deviceMACTextPrefab;
 
-    private Dictionary<string, GameObject> scannedDevices = new Dictionary<string, GameObject>();
+    [Header("Unified List UI")]
+    public Transform pairedContentContainer;
+    public Transform scannedContentContainer;
+    public GameObject deviceEntryPrefab;
+    public Sprite singleBackground;
+    public Sprite firstBackground;
+    public Sprite middleBackground;
+    public Sprite lastBackground;
+    public GameObject noDeviceEntryObject;
 
+    [Header("Scan UI Controls")]
+    public Button scanToggleButton;
+    public TextMeshProUGUI scanToggleButtonText;
 
+    private bool isScanning = false;
     private bool isConnected = false;
+    private bool anyDeviceFound = false;
 
-    // Android API objects
-    private AndroidJavaObject bluetoothAdapter; // Android BluetoothAdapter instance
-    private AndroidJavaObject bluetoothSocket; // BluetoothSocket for the connection
+    // Store scanned devices in list of entries "Name\nMAC"
+    private List<string> scannedDeviceList = new List<string>();
+
+    // Android Bluetooth objects
+    private AndroidJavaObject bluetoothAdapter;
+    private AndroidJavaObject bluetoothSocket;
 
     private static AndroidJavaClass unity3dbluetoothplugin;
     private static AndroidJavaObject BluetoothConnector;
 
-    // Standard SPP UUID (Bluetooth Serial Port Profile)
-    private string SPP_UUID = "00001101-0000-1000-8000-00805f9b34fb";
+    private readonly string SPP_UUID = "00001101-0000-1000-8000-00805f9b34fb";
 
+    [Header("External References")]
     public EncryptionManager encryptionManager;
+    public Terminal terminal; // replaces old logger
 
-    public BluetoothLoggerUI logger;
+    private string lastConnectedMAC = "";
+    private string lastConnectedName = "";
 
     void Start()
     {
-        // Initialize the Bluetooth adapter.
         InitBluetooth();
+        InitPairedSection();
     }
 
-    /// <summary>
-    /// Initializes the Bluetooth adapter and requests any needed permissions.
-    /// </summary>
     public void InitBluetooth()
     {
         if (Application.platform != RuntimePlatform.Android) return;
 
-        // Request necessary permissions.
+        // Request all necessary permissions
         if (!Permission.HasUserAuthorizedPermission(Permission.CoarseLocation) ||
             !Permission.HasUserAuthorizedPermission(Permission.FineLocation) ||
             !Permission.HasUserAuthorizedPermission("android.permission.BLUETOOTH") ||
@@ -67,7 +76,7 @@ public class BluetoothManager : MonoBehaviour
             !Permission.HasUserAuthorizedPermission("android.permission.BLUETOOTH_SCAN") ||
             !Permission.HasUserAuthorizedPermission("android.permission.BLUETOOTH_CONNECT"))
         {
-            Permission.RequestUserPermissions(new string[] 
+            Permission.RequestUserPermissions(new string[]
             {
                 Permission.CoarseLocation,
                 Permission.FineLocation,
@@ -78,9 +87,8 @@ public class BluetoothManager : MonoBehaviour
             });
         }
 
-        // Obtain the default BluetoothAdapter using Android's API.
-        AndroidJavaClass bluetoothAdapterClass = new AndroidJavaClass("android.bluetooth.BluetoothAdapter");
-        bluetoothAdapter = bluetoothAdapterClass.CallStatic<AndroidJavaObject>("getDefaultAdapter");
+        var adapterClass = new AndroidJavaClass("android.bluetooth.BluetoothAdapter");
+        bluetoothAdapter = adapterClass.CallStatic<AndroidJavaObject>("getDefaultAdapter");
 
         unity3dbluetoothplugin = new AndroidJavaClass("com.example.unity3dbluetoothplugin.BluetoothConnector");
         BluetoothConnector = unity3dbluetoothplugin.CallStatic<AndroidJavaObject>("getInstance");
@@ -91,157 +99,185 @@ public class BluetoothManager : MonoBehaviour
             return;
         }
 
-        //Toast("Bluetooth Ready");
         UpdateConnectionStatus("Status: Disconnected");
     }
 
-    /// <summary>
-    /// Opens the main Bluetooth panel.
-    /// </summary>
     public void ShowBluetoothPanel()
     {
-        if (bluetoothMainPanel != null)
-        {
-            bluetoothMainPanel.SetActive(true);
-        }
-        else
-        {
-            Toast("Bluetooth main panel not set in Inspector.");
-        }
+        bluetoothMainPanel.SetActive(true);
+        StartScanUI();
+
+        lastConnectedMAC = PlayerPrefs.GetString("LastConnectedMAC", "");
+        lastConnectedName = PlayerPrefs.GetString("LastConnectedName", "");
     }
 
     public void HideBluetoothPanel()
     {
-        if (bluetoothScanPanel != null)
+        bluetoothMainPanel.SetActive(false);
+        StopScanUI();
+    }
+
+    public void OnScanToggleButtonPressed()
+    {
+        if (isScanning) StopScanUI();
+        else StartScanUI();
+
+        if (noDeviceEntryObject != null)
+        noDeviceEntryObject.SetActive(false);
+
+    }
+
+    private void StartScanUI()
+    {
+        if (isConnected == true) return;
+
+        // Reset scan state
+        anyDeviceFound = false;
+
+        if (noDeviceEntryObject != null)
+            noDeviceEntryObject.SetActive(false); // hide the message at start
+
+        scannedDeviceList.Clear();
+        PopulateList(scannedDeviceList, scannedContentContainer, OnScannedDeviceSelected);
+
+        StartScan();
+        isScanning = true;
+        scanToggleButtonText.text = "Stop";
+        if (scanningAnimation != null)
+            scanningAnimation.SetActive(true);
+    }
+
+
+    private void StopScanUI()
+    {
+        StopScanDevices();
+        isScanning = false;
+        scanToggleButtonText.text = "Scan";
+        if (scanningAnimation != null)
+            scanningAnimation.SetActive(false);
+    }
+
+    public void InitPairedSection()
+    {
+        GetPairedDevices();
+    }
+
+    public void GetPairedDevices()
+    {
+        if (Application.platform != RuntimePlatform.Android) return;
+
+        AndroidJavaObject pairedDevices = bluetoothAdapter.Call<AndroidJavaObject>("getBondedDevices");
+        var list = new List<string>();
+
+        if (pairedDevices != null)
         {
-            bluetoothMainPanel.SetActive(false);
+            int deviceCount = pairedDevices.Call<int>("size");
+            if (deviceCount > 0)
+            {
+                var iterator = pairedDevices.Call<AndroidJavaObject>("iterator");
+                while (iterator.Call<bool>("hasNext"))
+                {
+                    var device = iterator.Call<AndroidJavaObject>("next");
+                    string name = device.Call<string>("getName");
+                    string address = device.Call<string>("getAddress");
+                    list.Add($"{name}\n{address}");
+                }
+            }
         }
-    }
-    
 
-    /// <summary>
-    /// Called when the Connect button inside the main panel is pressed.
-    /// Opens the device list panel.
-    /// </summary>
-    public void OnConnectButtonPressed()
-    {
-        ShowDeviceListPanel();
+        PopulateList(list, pairedContentContainer, OnDeviceSelected);
     }
 
-    /// <summary>
-    /// Activates the paired devices panel and retrieves paired devices.
-    /// </summary>
-    public void ShowDeviceListPanel()
+    public void StartScan()
     {
-        if (bluetoothDevicePanel != null)
+        if (Application.platform != RuntimePlatform.Android) return;
+
+        if (isConnected == true)
         {
-            bluetoothDevicePanel.SetActive(true);
-            GetPairedDevices();
+            return;
         }
         else
         {
-            Toast("Bluetooth device panel not set in Inspector.");
+            scannedDeviceList.Clear();
+            PopulateList(scannedDeviceList, scannedContentContainer, OnScannedDeviceSelected);
+            BluetoothConnector.CallStatic("StartScanDevices");
         }
     }
 
-    public void HideDeviceListPanel()
+    public void StopScanDevices()
     {
-        if (bluetoothScanPanel != null)
+        if (Application.platform != RuntimePlatform.Android) return;
+
+        BluetoothConnector.CallStatic("StopScanDevices");
+    }
+
+    // Called by Java when a new device is found during scan
+    public void NewDeviceFound(string data)
+    {
+        Debug.Log("NewDeviceFound: " + data);
+        if (string.IsNullOrEmpty(data)) return;
+
+        var parts = data.Split('+');
+        if (parts.Length < 2) return;
+
+        string address = parts[0];
+        string name = parts[1];
+        string entry = $"{name}\n{address}";
+
+        if (scannedDeviceList.Contains(entry)) return;
+
+        scannedDeviceList.Add(entry);
+        anyDeviceFound = true; // ✅ we found at least one device
+
+        PopulateList(scannedDeviceList, scannedContentContainer, OnScannedDeviceSelected);
+    }
+
+
+    public void ScanStatus(string status)
+    {
+        Debug.Log("ScanStatus: " + status);
+        Toast("Scan Status: " + status);
+
+        if (status == "stopped" || status == "completed")
         {
-            bluetoothDevicePanel.SetActive(false);
-        }
-    }
+            isScanning = false;
+            scanToggleButtonText.text = "Scan";
+            if (scanningAnimation != null)
+                scanningAnimation.SetActive(false);
 
-    /// <summary>
-    /// Retrieves the paired devices, dynamically instantiates a list of buttons for each device, and displays them.
-    /// </summary>
-    public void GetPairedDevices()
-{
-    if (Application.platform != RuntimePlatform.Android) return;
+            PopulateList(scannedDeviceList, scannedContentContainer, OnScannedDeviceSelected);
 
-    // Retrieve the set of paired devices
-    AndroidJavaObject pairedDevices = bluetoothAdapter.Call<AndroidJavaObject>("getBondedDevices");
-
-    if (pairedDevices == null)
-    {
-        Toast("No paired devices found.");
-        Debug.LogError("No paired devices found.");
-        return;
-    }
-
-    // Log the number of paired devices
-    int deviceCount = pairedDevices.Call<int>("size");
-    Debug.Log("Paired devices count: " + deviceCount);
-
-    if (deviceCount == 0)
-    {
-        Toast("No paired devices found.");
-        Debug.Log("No paired devices found.");
-        return;
-    }
-
-    // Clear the paired devices list container (if any previous items are there)
-    foreach (Transform child in devicesListContainer.transform)
-    {
-        Destroy(child.gameObject);
-    }
-
-    // Iterate over the paired devices
-    AndroidJavaObject iterator = pairedDevices.Call<AndroidJavaObject>("iterator");
-    while (iterator.Call<bool>("hasNext"))
-    {
-        AndroidJavaObject device = iterator.Call<AndroidJavaObject>("next");
-
-        // Get device name and address
-        string deviceName = device.Call<string>("getName");
-        string deviceAddress = device.Call<string>("getAddress");
-
-        // Log the device information to help debug
-        Debug.Log("Paired Device - Name: " + deviceName + ", Address: " + deviceAddress);
-
-        string entry = deviceName + "\n" + deviceAddress;
-
-        // Instantiate a new device entry using the prefab
-        GameObject newDeviceGO = Instantiate(deviceMACTextPrefab, devicesListContainer.transform);
-        TextMeshProUGUI deviceText = newDeviceGO.GetComponentInChildren<TextMeshProUGUI>();
-        if (deviceText != null) deviceText.text = entry;
-
-        Button deviceButton = newDeviceGO.GetComponent<Button>();
-        if (deviceButton != null)
-        {
-            // Capture the device address for use in the listener
-            string addr = deviceAddress;
-            deviceButton.onClick.AddListener(() =>
+            // ✅ Show "no devices" only if nothing was found during scan
+            if (!anyDeviceFound && noDeviceEntryObject != null)
             {
-                OnDeviceSelected(addr);
-            });
+                noDeviceEntryObject.SetActive(true);
+            }
         }
     }
-}
 
 
-    /// <summary>
-    /// Called when a device from the list is selected.
-    /// Attempts to connect to the device and, if successful, hides the device list panel.
-    /// If the connection fails, the device list stays visible so the user can select another device.
-    /// </summary>
     public void OnDeviceSelected(string address)
     {
         StartConnection(address);
+    }
 
-        // Only remove the list (close the panel) if connection is successful.
-        if (isConnected && bluetoothDevicePanel != null)
-        {
-            bluetoothDevicePanel.SetActive(false);
-        }
+    public void OnScannedDeviceSelected(string address)
+    {
+        StartConnection(address);
     }
 
     /// <summary>
-    /// Initiates a connection to the selected device.
+    /// The old connection logic is preserved here with socket connection, UUID, and try-catch.
+    /// It calls the AndroidJavaObject device.createRfcommSocketToServiceRecord and connects.
     /// </summary>
     public void StartConnection(string deviceAddress)
     {
-        if (Application.platform != RuntimePlatform.Android) return;
+        if (Application.platform != RuntimePlatform.Android)
+        {
+            Toast("Platform not Android.");
+            return;
+        }
+
         if (string.IsNullOrEmpty(deviceAddress))
         {
             Toast("No device address provided.");
@@ -250,7 +286,7 @@ public class BluetoothManager : MonoBehaviour
 
         try
         {
-            // Get the remote Bluetooth device.
+            // Get the remote device
             AndroidJavaObject device = bluetoothAdapter.Call<AndroidJavaObject>("getRemoteDevice", deviceAddress);
             if (device == null)
             {
@@ -258,38 +294,102 @@ public class BluetoothManager : MonoBehaviour
                 return;
             }
 
-            // Get the SPP UUID from Java's UUID.fromString(String) method.
+            // Get the SPP UUID
             AndroidJavaClass uuidClass = new AndroidJavaClass("java.util.UUID");
             AndroidJavaObject sppUUID = uuidClass.CallStatic<AndroidJavaObject>("fromString", SPP_UUID);
 
-            // Create an RFCOMM socket.
+            // Create RFCOMM socket and connect
             bluetoothSocket = device.Call<AndroidJavaObject>("createRfcommSocketToServiceRecord", sppUUID);
             bluetoothSocket.Call("connect");
 
             isConnected = true;
-            Toast("Connected to " + deviceAddress);
-            UpdateConnectionStatus("Status: Connected to " + deviceAddress);
+            StopScanUI();
+            lastConnectedMAC = deviceAddress;
+            lastConnectedName = FindDeviceNameByMAC(deviceAddress);
+
+            PlayerPrefs.SetString("LastConnectedMAC", lastConnectedMAC);
+            PlayerPrefs.SetString("LastConnectedName", lastConnectedName);
+            PlayerPrefs.Save();
+
+            Toast("Connected to " + lastConnectedName);
+
+            UpdateConnectionStatus("Status: Connected to " + lastConnectedName);
+
+            // Update UI for paired devices list
+            InitPairedSection();
         }
-        catch (System.Exception ex)
+        catch (Exception ex)
         {
-            // Connection failed.
             isConnected = false;
             Toast("Connection failed: " + ex.Message);
             UpdateConnectionStatus("Status: Connection failed");
+            Debug.LogError("Connection failed: " + ex);
         }
-        SaveDeviceMAC(deviceAddress);
     }
 
-    // This function will be called by Java class whenever BT data is received,
-    // DO NOT CHANGE ITS NAME OR IT WILL NOT BE FOUND BY THE JAVA CLASS
+    // Called by Java when connection status changes (or you can trigger it yourself)
+    public void ConnectionStatus(string status)
+    {
+        Debug.Log("ConnectionStatus: " + status);
+        UpdateConnectionStatus("Status: " + status);
+
+        if (status == "connected")
+        {
+            isConnected = true;
+            //HideBluetoothPanel();
+
+            Toast($"Connected to: {lastConnectedName}");
+
+            PlayerPrefs.SetString("LastConnectedMAC", lastConnectedMAC);
+            PlayerPrefs.SetString("LastConnectedName", lastConnectedName);
+            PlayerPrefs.Save();
+
+            InitPairedSection(); // update UI
+        }
+        else if (status == "disconnected" || status == "unable to connect")
+        {
+            isConnected = false;
+        }
+    }
+
+    public void StopConnection()
+    {
+        if (Application.platform != RuntimePlatform.Android) return;
+
+        try
+        {
+            if (bluetoothSocket != null)
+            {
+                bluetoothSocket.Call("close");
+                bluetoothSocket = null;
+                isConnected = false;
+                Toast("Disconnected");
+                UpdateConnectionStatus("Status: Disconnected");
+            }
+        }
+        catch (Exception ex)
+        {
+            Toast("Disconnect failed: " + ex.Message);
+            Debug.LogError("Disconnect failed: " + ex);
+        }
+
+        // Also call Java side to stop connection if applicable
+        BluetoothConnector.CallStatic("StopConnection");
+    }
+
+    // Called by Java when data is received
     public void ReadData(string data)
     {
         Debug.Log("BT Stream: " + data);
-        receivedData.text = data;
+        if (terminal != null)
+            terminal.LogReceived(data);
+        else
+            Debug.LogWarning("Terminal reference missing, cannot log received data.");
     }
 
     /// <summary>
-    /// Writes data from the dataToSend TMP text component to the connected device.
+    /// Writes encrypted data over the socket's output stream.
+    /// Uses old connection logic from BluetoothManagerOld.
     /// </summary>
     public void WriteData(string plainText)
     {
@@ -304,34 +404,38 @@ public class BluetoothManager : MonoBehaviour
 
         try
         {
-            // Encrypt the string
-            string encryptedHex = encryptionManager.EncryptString(plainText);
+            if (bluetoothSocket == null)
+            {
+                Debug.LogError("Bluetooth socket is null.");
+                Toast("Bluetooth socket is not connected.");
+                return;
+            }
 
-            // Convert encrypted hex to bytes
+            if (encryptionManager == null)
+            {
+                Debug.LogError("Encryption manager is null.");
+                Toast("Encryption system not ready.");
+                return;
+            }
+
+            string encryptedHex = encryptionManager.EncryptString(plainText);
             byte[] dataBytes = Encoding.UTF8.GetBytes(encryptedHex);
 
-            // Append newline to indicate end of message
-            byte[] final = new byte[dataBytes.Length + 1];
-            Buffer.BlockCopy(dataBytes, 0, final, 0, dataBytes.Length);
-            final[final.Length - 1] = (byte)'\n';
+            // Append newline
+            byte[] finalBytes = new byte[dataBytes.Length + 1];
+            Buffer.BlockCopy(dataBytes, 0, finalBytes, 0, dataBytes.Length);
+            finalBytes[finalBytes.Length - 1] = (byte)'\n';
 
-            // Write to Bluetooth output stream
             AndroidJavaObject outputStream = bluetoothSocket.Call<AndroidJavaObject>("getOutputStream");
-            outputStream.Call("write", final);
+            outputStream.Call("write", finalBytes);
             outputStream.Call("flush");
 
-            Toast("Encrypted + Sent: " + plainText + " as " + encryptedHex);
+            Toast($"Encrypted + Sent: {plainText} as {encryptedHex}");
 
-            if (logger != null)
-            {
-                logger.LogMessage($"Sent: {plainText}");
-                Debug.Log("[BluetoothManager] Logger is assigned and message logged.");
-            }
+            if (terminal != null)
+                terminal.LogSent(plainText);
             else
-            {
-                Debug.LogWarning("[BluetoothManager] Logger is null. Message not logged.");
-            }
-
+                Debug.LogWarning("Terminal reference missing, cannot log sent data.");
         }
         catch (Exception ex)
         {
@@ -340,34 +444,17 @@ public class BluetoothManager : MonoBehaviour
         }
     }
 
-
-    /// <summary>
-    /// Closes the Bluetooth connection.
-    /// </summary>
-    public void StopConnection()
+    public void ResetPosition()
     {
-        if (Application.platform != RuntimePlatform.Android) return;
-
-        if (bluetoothSocket != null)
-        {
-            try
-            {
-                bluetoothSocket.Call("close");
-                bluetoothSocket = null;
-                isConnected = false;
-                Toast("Disconnected");
-                UpdateConnectionStatus("Status: Disconnected");
-            }
-            catch (System.Exception ex)
-            {
-                Toast("Disconnect failed: " + ex.Message);
-            }
-        }
+        WriteData("SERVOS:0,90,90,105");
     }
 
-    /// <summary>
-    /// Displays a Toast using Android's Toast API.
-    /// </summary>
+    public void SaveDeviceMAC(string mac)
+    {
+        PlayerPrefs.SetString("LastConnectedMAC", mac);
+        PlayerPrefs.Save();
+    }
+
     public void Toast(string message)
     {
         if (Application.platform != RuntimePlatform.Android)
@@ -376,7 +463,6 @@ public class BluetoothManager : MonoBehaviour
             return;
         }
 
-        // Run on UI thread.
         AndroidJavaClass unityPlayer = new AndroidJavaClass("com.unity3d.player.UnityPlayer");
         AndroidJavaObject currentActivity = unityPlayer.GetStatic<AndroidJavaObject>("currentActivity");
 
@@ -388,177 +474,67 @@ public class BluetoothManager : MonoBehaviour
         }));
     }
 
-    /// <summary>
-    /// Updates the connection status TMP text.
-    /// </summary>
     public void UpdateConnectionStatus(string status)
     {
         if (connectionStatus != null)
             connectionStatus.text = status;
     }
 
-    /// <summary>
-    /// Opens the scan panel and starts scanning for nearby devices.
-    /// </summary>
-    public void OnScanButtonPressed()
+    private string FindDeviceNameByMAC(string mac)
     {
-        if (bluetoothScanPanel != null)
+        foreach (var entry in scannedDeviceList)
         {
-            bluetoothScanPanel.SetActive(true);
-            StartScan();
+            if (entry.Contains(mac))
+                return entry.Split('\n')[0];
         }
-        else
-        {
-            Toast("Bluetooth scan panel not set in Inspector.");
-        }
+        return mac; // fallback
     }
 
-    // Called when user presses "Start Scan Again" button
-    public void OnStartScanButtonPressed()
-    {
-        StartScan();
-    }
-
-    // Start scanning devices
-    public void StartScan()
-    {
-        if (Application.platform != RuntimePlatform.Android)
-            return;
-
-        // Clear the scanned devices list container to update the list
-        foreach (Transform child in scannedDevicesListContainer.transform)
-        {
-            Destroy(child.gameObject);
-        }
-
-        BluetoothConnector.CallStatic("StartScanDevices");
-    }
-
-    // Called from JAVA when scan status changes
-    public void ScanStatus(string status)
-    {
-        Toast("Scan Status: " + status);
-
-        if (status == "stopped" || status == "completed")
-        {
-            if (scanningStatusText != null)
-                scanningStatusText.text = "Scan Stopped";
-        }
-    }
-
-    /// <summary>
-    /// Called by the Java side when a new device is found during scan.
-    /// </summary>
-    public void NewDeviceFound(string data)
-    {
-        Debug.Log("New device found: " + data);  // Debug log to verify devices are being passed.
-        if (string.IsNullOrEmpty(data)) return;  // Ensure data is valid before proceeding.
-
-        if (scannedDevices.ContainsKey(data)) return;  // Prevent adding duplicate devices
-
-        // Instantiate a new device UI element from the prefab
-        GameObject newDeviceGO = Instantiate(deviceMACTextPrefab, scannedDevicesListContainer.transform);
-        TextMeshProUGUI deviceText = newDeviceGO.GetComponentInChildren<TextMeshProUGUI>();
-
-        if (deviceText != null) deviceText.text = data;  // Set the text to the device info
-
-        Button deviceButton = newDeviceGO.GetComponent<Button>();
-        if (deviceButton != null)
-        {
-            // Extract the MAC address from the data (assuming data is in the format "MAC+NAME")
-            string address = data.Split('+')[0];  // Extracting only the MAC address part
-            deviceButton.onClick.AddListener(() =>
-            {
-                // Handle device selection
-                OnScannedDeviceSelected(address);
-            });
-        }
-
-        // Store the device entry in the dictionary to avoid duplicates
-        scannedDevices[data] = newDeviceGO;
-    }
-
-
-    /// <summary>
-    /// Called when a user selects a scanned device from the scan results.
-    /// </summary>
-    public void OnScannedDeviceSelected(string address)
-    {
-        StartConnection(address);
-
-        // Optionally close the scan panel
-        if (isConnected && bluetoothScanPanel != null)
-        {
-            bluetoothScanPanel.SetActive(false);
-        }
-    }
-
-    public void HideScanPanel()
-    {
-        if (bluetoothScanPanel != null)
-        {
-            bluetoothScanPanel.SetActive(false);
-            StopScanDevices(); // optional: also stop scanning when closing
-        }
-    }
-
-    public void StopScanDevices()
-    {
-        if (Application.platform != RuntimePlatform.Android) return;
-
-        // Stop scanning devices directly here
-        AndroidJavaClass bluetoothClass = new AndroidJavaClass("com.example.bluetooth.BluetoothManager");
-        bluetoothClass.CallStatic("StopScanDevices");
-    }
-
-    // Show the send panel
-    public void ShowSendPanel()
-    {
-        sendPanel.SetActive(true);
-    }
-
-    // Hide the send panel
-    public void HideSendPanel()
-    {
-        sendPanel.SetActive(false);
-    }
-
-    // Send the data and close the panel
-    public void SendData()
-    {
-        string data = inputFieldToSend.text;
-
-            // Check if the data is null or empty
-        if (string.IsNullOrEmpty(data))
-        {
-            Toast("Cannot send empty or null data!");  // Show a toast message
-            return;  // Exit the function early if the data is invalid
-        }
-
-        WriteData(data);  // Call WriteData with the text from the input field
-        Toast("Message Sent: " + data);
-
-        // Clear the input field after sending the data
-        inputFieldToSend.text = ""; 
-    }
-
-     // Cancel the sending and close the panel
-    public void CancelSend()
-    {
-        inputFieldToSend.text = "";  // Clear the input field
-        HideSendPanel();
-    }
-
+    // 
     
-
-    void SaveDeviceMAC(string macAddress)
+        private void PopulateList(List<string> devices, Transform container, Action<string> onDeviceSelected)
     {
-        PlayerPrefs.SetString("LastConnectedMAC", macAddress);
-        PlayerPrefs.Save();
+        foreach (Transform child in container)
+            Destroy(child.gameObject);
+
+        int count = devices.Count;
+        bool isPairedList = (container == pairedContentContainer);
+
+        for (int i = 0; i < count; i++)
+        {
+            var parts = devices[i].Split('\n');
+            string deviceName = parts[0];
+            string macAddress = parts.Length > 1 ? parts[1] : parts[0];
+
+            var go = Instantiate(deviceEntryPrefab, container);
+            var comp = go.GetComponent<DeviceEntry>();
+            if (comp == null) continue;
+
+            Sprite bg;
+            if (count == 1) bg = singleBackground;
+            else if (i == 0) bg = firstBackground;
+            else if (i == count - 1) bg = lastBackground;
+            else bg = middleBackground;
+
+            bool isSelected = isPairedList && macAddress == lastConnectedMAC;
+
+            comp.Setup(deviceName, macAddress, bg, () => onDeviceSelected(macAddress), isSelected);
+        }
+
+        LayoutRebuilder.ForceRebuildLayoutImmediate((RectTransform)container);
+        StartCoroutine(ResizeParentHeight(container));
     }
 
 
-    public void ResetPosition() {
-        WriteData("SERVOS:0,90,90,105");
+    // Optional: auto-resize wrapper height (if using a max height cap)
+    private IEnumerator ResizeParentHeight(Transform container)
+    {
+        yield return null;
+
+        RectTransform contentRT = (RectTransform)container;
+        RectTransform parentRT = (RectTransform)container.parent;
+
+        float preferredHeight = LayoutUtility.GetPreferredHeight(contentRT);
+        parentRT.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, preferredHeight);
     }
 }
