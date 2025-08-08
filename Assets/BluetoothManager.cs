@@ -134,7 +134,7 @@ public class BluetoothManager : MonoBehaviour
         else StartScanUI();
 
         if (noDeviceEntryObject != null)
-        noDeviceEntryObject.SetActive(false);
+            noDeviceEntryObject.SetActive(false);
 
     }
 
@@ -266,8 +266,24 @@ public class BluetoothManager : MonoBehaviour
     }
 
 
+    // public void OnDeviceSelected(string address)
+    // {
+    //     if (isConnected && address == lastConnectedMAC)
+    //     {
+    //         StopConnection();
+    //     }
+    //     else
+    //     {
+    //         StartConnection(address);
+    //     }
+    // }
+
     public void OnDeviceSelected(string address)
     {
+        var deviceEntry = FindDeviceEntryByMAC(address, pairedContentContainer);
+        if (deviceEntry != null)
+            deviceEntry.SetConnectionStatus("Connecting...", Color.yellow);
+
         if (isConnected && address == lastConnectedMAC)
         {
             StopConnection();
@@ -280,6 +296,10 @@ public class BluetoothManager : MonoBehaviour
 
     public void OnScannedDeviceSelected(string address)
     {
+        var deviceEntry = FindDeviceEntryByMAC(address, scannedContentContainer);
+        if (deviceEntry != null)
+            deviceEntry.SetConnectionStatus("Connecting...", Color.yellow);
+
         if (isConnected && address == lastConnectedMAC)
         {
             StopConnection();
@@ -289,6 +309,19 @@ public class BluetoothManager : MonoBehaviour
             StartConnection(address);
         }
     }
+
+
+    // public void OnScannedDeviceSelected(string address)
+    // {
+    //     if (isConnected && address == lastConnectedMAC)
+    //     {
+    //         StopConnection();
+    //     }
+    //     else
+    //     {
+    //         StartConnection(address);
+    //     }
+    // }
 
 
     public void StartConnection(string deviceAddress)
@@ -333,7 +366,9 @@ public class BluetoothManager : MonoBehaviour
             PlayerPrefs.SetString("LastConnectedName", lastConnectedName);
             PlayerPrefs.Save();
 
-            Toast("Connected to " + lastConnectedName);
+            // Toast("Connected to " + lastConnectedName);
+            Toast("Connected to " + FindDeviceNameByMAC(lastConnectedMAC));
+
 
             UpdateConnectionStatus("Status: Connected to " + lastConnectedName);
 
@@ -360,7 +395,8 @@ public class BluetoothManager : MonoBehaviour
             isConnected = true;
             //HideBluetoothPanel();
 
-            Toast($"Connected to: {lastConnectedName}");
+            // Toast($"Connected to: {lastConnectedName}");
+            Toast("Connected to " + FindDeviceNameByMAC(lastConnectedMAC));
 
             PlayerPrefs.SetString("LastConnectedMAC", lastConnectedMAC);
             PlayerPrefs.SetString("LastConnectedName", lastConnectedName);
@@ -376,50 +412,46 @@ public class BluetoothManager : MonoBehaviour
 
 
     public void StopConnection()
-{
-    if (Application.platform != RuntimePlatform.Android) return;
-
-    string disconnectedDeviceName = lastConnectedName;
-    lastDisconnectedMAC = lastConnectedMAC;  // Remember disconnected MAC for UI
-    lastConnectedMAC = "";
-    lastConnectedName = "";
-    isConnected = false;
-
-    UpdateConnectionStatus("Status: Disconnected");
-    Toast($"Disconnected from {disconnectedDeviceName}");
-
-    try
     {
-        if (bluetoothSocket != null)
+        if (Application.platform != RuntimePlatform.Android) return;
+
+        string disconnectedDeviceName = lastConnectedName;
+        lastDisconnectedMAC = lastConnectedMAC;  // Remember disconnected MAC for UI
+        lastConnectedMAC = "";
+        lastConnectedName = "";
+        isConnected = false;
+
+        UpdateConnectionStatus("Status: Disconnected");
+        // Toast($"Disconnected from {disconnectedDeviceName}");
+        Toast("Disconnected from " + FindDeviceNameByMAC(disconnectedDeviceName));
+
+        try
         {
-            bluetoothSocket.Call("close");
-            bluetoothSocket = null;
+            if (bluetoothSocket != null)
+            {
+                bluetoothSocket.Call("close");
+                bluetoothSocket = null;
+            }
         }
+        catch (Exception ex)
+        {
+            Toast("Disconnect failed: " + ex.Message);
+            Debug.LogError("Disconnect failed: " + ex);
+        }
+
+        try
+        {
+            BluetoothConnector.CallStatic("StopConnection");
+        }
+        catch (Exception ex)
+        {
+            Debug.LogWarning("Java StopConnection call failed (ignored): " + ex.Message);
+        }
+
+        // Refresh UI lists to update connection labels
+        PopulateList(lastPairedList, pairedContentContainer, OnDeviceSelected);
+        PopulateList(lastScannedList, scannedContentContainer, OnDeviceSelected);
     }
-    catch (Exception ex)
-    {
-        Toast("Disconnect failed: " + ex.Message);
-        Debug.LogError("Disconnect failed: " + ex);
-    }
-
-    try
-    {
-        BluetoothConnector.CallStatic("StopConnection");
-    }
-    catch (Exception ex)
-    {
-        Debug.LogWarning("Java StopConnection call failed (ignored): " + ex.Message);
-    }
-
-    // Refresh UI lists to update connection labels
-    PopulateList(lastPairedList, pairedContentContainer, OnDeviceSelected);
-    PopulateList(lastScannedList, scannedContentContainer, OnDeviceSelected);
-}
-
-
-
-
-
 
     private void ClearConnectedLabel(Transform container, string macAddress)
     {
@@ -432,11 +464,6 @@ public class BluetoothManager : MonoBehaviour
             }
         }
     }
-
-
-
-
-
 
 
     // Called by Java when data is received
@@ -503,13 +530,14 @@ public class BluetoothManager : MonoBehaviour
         {
             Debug.LogError("Bluetooth Write Failed: " + ex);
             Toast("Write failed: " + ex.Message);
+            StopConnection();
         }
     }
 
-    public void ResetPosition()
-    {
-        WriteData("SERVOS:0,90,90,105");
-    }
+    // public void ResetPosition()
+    // {
+    //     WriteData("SERVOS:0,90,90,105");
+    // }
 
     public void SaveDeviceMAC(string mac)
     {
@@ -604,8 +632,6 @@ public class BluetoothManager : MonoBehaviour
     }
 
 
-
-
     // Optional: auto-resize wrapper height (if using a max height cap)
     private IEnumerator ResizeParentHeight(Transform container)
     {
@@ -617,4 +643,16 @@ public class BluetoothManager : MonoBehaviour
         float preferredHeight = LayoutUtility.GetPreferredHeight(contentRT);
         parentRT.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, preferredHeight);
     }
+    
+    private DeviceEntry FindDeviceEntryByMAC(string mac, Transform container)
+    {
+        foreach (Transform child in container)
+        {
+            var entry = child.GetComponent<DeviceEntry>();
+            if (entry != null && entry.MACAddress == mac)
+                return entry;
+        }
+        return null;
+    }
+
 }
