@@ -15,11 +15,13 @@ public static class PlayerPrefsKeyRegistry
         { "Open_Command", (PrefType.String, PrefCategory.BluetoothCommandConstruct) },
         { "Close_Command", (PrefType.String, PrefCategory.BluetoothCommandConstruct) },
         { "Command_Delimiter", (PrefType.String, PrefCategory.BluetoothCommandConstruct) },
+        { "List_Delimiter", (PrefType.String, PrefCategory.BluetoothCommandConstruct) },
         { "OpenButtonValue", (PrefType.Int, PrefCategory.BluetoothCommandConstruct) },
         { "CloseButtonValue", (PrefType.Int, PrefCategory.BluetoothCommandConstruct) },
+        { "SingleModeToggle", (PrefType.Int, PrefCategory.BluetoothCommandConstruct) },
 
         // Encryption
-        { "KeyPref", (PrefType.String, PrefCategory.Encryption) },
+            { "KeyPref", (PrefType.String, PrefCategory.Encryption) },
         { "AESKey", (PrefType.String, PrefCategory.Encryption) },
         { "AES_Encryption_Key", (PrefType.String, PrefCategory.Encryption) },
         { "DESKey", (PrefType.String, PrefCategory.Encryption) },
