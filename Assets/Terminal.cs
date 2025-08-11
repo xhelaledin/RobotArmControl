@@ -87,7 +87,7 @@ public class Terminal : MonoBehaviour, IDeselectHandler
 
         LogSent(message);
         inputField.text = "";
-        inputField.ActivateInputField(); // Keep keyboard open and input focused after send
+        //inputField.ActivateInputField(); // Keep keyboard open and input focused after send
     }
 
     // Prevent input field from losing focus unintentionally

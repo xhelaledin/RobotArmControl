@@ -58,15 +58,15 @@ public class BluetoothCommandConstructor : MonoBehaviour
     public BluetoothManager bluetoothManager;
 
     [Header("Keyboard Handling")]
-    public Canvas worldCanvas;                   // assign if you have world-space or screen-space camera canvas
+    public Canvas worldCanvas;
     public RectTransform commandPanelRect;
-    public ScrollRect scrollRect;                // IMPORTANT: assign your ScrollRect here
+    public ScrollRect scrollRect;
 
     [Header("Debug")]
     public bool debugLogs = false;
 
     private Vector3 commandPanelOriginalPos;
-    private Vector2 contentOriginalAnchoredPos;  // to restore scroll when keyboard hides
+    private Vector2 contentOriginalAnchoredPos;
     private Coroutine keyboardCoroutine;
 
     private readonly List<string> delimiterOptions = new List<string> { ":", ",", "-", "_", ".", ";", "+", "=", "~" };
@@ -175,8 +175,6 @@ public class BluetoothCommandConstructor : MonoBehaviour
         });
     }
 
-
-
     private void UpdateDisplayText(TMP_Text displayText, string commandPart, string defaultCommand, string exampleValue)
     {
         if (displayText == null) return;
@@ -222,7 +220,7 @@ public class BluetoothCommandConstructor : MonoBehaviour
             closeCommandInputField.gameObject.SetActive(!singleMode);
 
         if (closeCommandPrefixText != null)
-            closeCommandPrefixText.text = singleMode ? "Close Command Prefix: Uses same as open" : "Close Command Prefix:";
+            closeCommandPrefixText.text = singleMode ? "Close Cmmnd Prefix: Uses same as open" : "Close Cmmnd Prefix:";
 
         if (singleMode)
         {
@@ -279,7 +277,6 @@ public class BluetoothCommandConstructor : MonoBehaviour
         if (saveCommandDisplayText != null)
             saveCommandDisplayText.text = saveCommand + commandDelimiter + BuildSaveExample();
     }
-
 
     private void LoadCommandsFromPrefs()
     {

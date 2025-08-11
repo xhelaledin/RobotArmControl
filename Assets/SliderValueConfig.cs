@@ -1,258 +1,360 @@
-using UnityEngine;
+using System;
+using System.Collections.Generic;
 using TMPro;
+using UnityEngine;
 using UnityEngine.UI;
-using System.Text;
+using Lean.Gui;
+
+[System.Serializable]
+public class SliderGroup
+{
+    [Header("Accordion")]
+    public Button mainButton;
+    public GameObject settingsPanel;
+    public Sprite spriteClosed;
+    public Sprite spriteOpened;
+
+    [Header("Fields")]
+    public TMP_InputField minValueField;
+    public TMP_InputField maxValueField;
+    public TMP_InputField startValueField;
+
+    [Header("Direction radio (index 0 = Off, index 1 = On)")]
+    public List<LeanToggle> directionOptions; // Expect size = 2
+
+    // PlayerPrefs keys (auto-assigned)
+    [HideInInspector] public string minKey;
+    [HideInInspector] public string maxKey;
+    [HideInInspector] public string startKey;
+    [HideInInspector] public string flipKey;
+
+    // Runtime state
+    [HideInInspector] public int currentDirectionIndex; // 0 = Off, 1 = On
+}
 
 public class SliderValueConfig : MonoBehaviour
 {
-    public RobotArmSelection robotArmSelection;
-
     public GameObject sliderConfigPanel;
-    public TMP_InputField slider1MinValueIn, slider1MaxValueIn, slider1StartValueIn;
-    public TMP_InputField slider2MinValueIn, slider2MaxValueIn, slider2StartValueIn;
-    public TMP_InputField slider3MinValueIn, slider3MaxValueIn, slider3StartValueIn;
-    public TMP_InputField slider4MinValueIn, slider4MaxValueIn, slider4StartValueIn;
-    public TMP_InputField slider5MinValueIn, slider5MaxValueIn, slider5StartValueIn;
-    public Toggle slider1DirectionToggle, slider2DirectionToggle, slider3DirectionToggle, slider4DirectionToggle, slider5DirectionToggle;
+
+    [Header("Core")]
+    public RobotArmSelection robotArmSelection;
+    public List<SliderGroup> sliderGroups = new List<SliderGroup>();
+
+    [Header("Open/Close values (fields)")]
     public TMP_InputField openButtonValueIn;
     public TMP_InputField closeButtonValueIn;
 
+    [Header("Buttons group (accordion)")]
+    public Button buttonsHeaderButton;
+    public GameObject buttonsSettingsPanel;
+    public Sprite buttonsSpriteClosed;
+    public Sprite buttonsSpriteOpened;
+
+    // Keys for open/close
+    [HideInInspector] public string openKey;
+    [HideInInspector] public string closeKey;
+
+    // Guard against recursive radio events
+    private bool isProgrammatic;
+
+    void Awake()
+    {
+        // Auto-assign keys for slider groups
+        for (int i = 0; i < sliderGroups.Count; i++)
+        {
+            int n = i + 1;
+            sliderGroups[i].minKey = $"Slider{n}_Min";
+            sliderGroups[i].maxKey = $"Slider{n}_Max";
+            sliderGroups[i].startKey = $"Slider{n}_Start";
+            sliderGroups[i].flipKey = $"Slider{n}_FlipDirection";
+        }
+
+        // Keys for open/close (as requested)
+        openKey = "OpenButtonPressed";
+        closeKey = "CloseButtonPressed";
+    }
+
     void Start()
     {
-        LoadSliderValues();
-    }
-
-    private int ParseIntOrDefault(TMP_InputField field, int defaultValue)
-    {
-        if (!int.TryParse(field.text, out int result))
+        // Setup slider groups (accordion + load + hooks)
+        foreach (var group in sliderGroups)
         {
-            return defaultValue;
-        }
-        return result;
-    }
+            // Start collapsed and set header sprite closed
+            if (group.settingsPanel != null) group.settingsPanel.SetActive(false);
 
-    public void OnSliderConfirmClicked()
-    {
-        OnSlider1ConfirmClicked();
-        OnSlider2ConfirmClicked();
-        OnSlider3ConfirmClicked();
-        OnSlider4ConfirmClicked();
-        OnSlider5ConfirmClicked();
-        OnButtonConfirmClicked();
-    }
-
-    public void OnSlider1ConfirmClicked()
-    {
-        int min = ParseIntOrDefault(slider1MinValueIn, 0);
-        int max = ParseIntOrDefault(slider1MaxValueIn, 180);
-        int start = ParseIntOrDefault(slider1StartValueIn, 90);
-
-        min = Mathf.Max(min, 0);
-        max = Mathf.Max(max, min);
-        start = Mathf.Clamp(start, min, max);
-
-        bool flipDirection = slider1DirectionToggle.isOn;
-
-        robotArmSelection.ConfigureSliderValue(0, min, max, start, flipDirection);
-
-        SaveSliderValues(1, min, max, start, flipDirection);
-    }
-
-    public void OnSlider2ConfirmClicked()
-    {
-        int min = ParseIntOrDefault(slider2MinValueIn, 0);
-        int max = ParseIntOrDefault(slider2MaxValueIn, 180);
-        int start = ParseIntOrDefault(slider2StartValueIn, 90);
-
-        min = Mathf.Max(min, 0);
-        max = Mathf.Max(max, min);
-        start = Mathf.Clamp(start, min, max);
-
-        bool flipDirection = slider2DirectionToggle.isOn;
-
-        robotArmSelection.ConfigureSliderValue(1, min, max, start, flipDirection);
-
-        SaveSliderValues(2, min, max, start, flipDirection);
-    }
-
-    public void OnSlider3ConfirmClicked()
-    {
-        int min = ParseIntOrDefault(slider3MinValueIn, 0);
-        int max = ParseIntOrDefault(slider3MaxValueIn, 180);
-        int start = ParseIntOrDefault(slider3StartValueIn, 90);
-
-        min = Mathf.Max(min, 0);
-        max = Mathf.Max(max, min);
-        start = Mathf.Clamp(start, min, max);
-
-        bool flipDirection = slider3DirectionToggle.isOn;
-
-        robotArmSelection.ConfigureSliderValue(2, min, max, start, flipDirection);
-
-        SaveSliderValues(3, min, max, start, flipDirection);
-    }
-
-    public void OnSlider4ConfirmClicked()
-    {
-        int min = ParseIntOrDefault(slider4MinValueIn, 0);
-        int max = ParseIntOrDefault(slider4MaxValueIn, 180);
-        int start = ParseIntOrDefault(slider4StartValueIn, 90);
-
-        min = Mathf.Max(min, 0);
-        max = Mathf.Max(max, min);
-        start = Mathf.Clamp(start, min, max);
-
-        bool flipDirection = slider4DirectionToggle.isOn;
-
-        robotArmSelection.ConfigureSliderValue(3, min, max, start, flipDirection);
-
-        SaveSliderValues(4, min, max, start, flipDirection);
-    }
-
-    public void OnSlider5ConfirmClicked()
-    {
-        int min = ParseIntOrDefault(slider5MinValueIn, 0);
-        int max = ParseIntOrDefault(slider5MaxValueIn, 180);
-        int start = ParseIntOrDefault(slider5StartValueIn, 90);
-
-        min = Mathf.Max(min, 0);
-        max = Mathf.Max(max, min);
-        start = Mathf.Clamp(start, min, max);
-
-        bool flipDirection = slider5DirectionToggle.isOn;
-
-        robotArmSelection.ConfigureSliderValue(4, min, max, start, flipDirection);
-
-        SaveSliderValues(5, min, max, start, flipDirection);
-    }
-
-    public void OnButtonConfirmClicked()
-    {
-        int open = ParseIntOrDefault(openButtonValueIn, 105);
-        int close = ParseIntOrDefault(closeButtonValueIn, 177);
-
-        open = Mathf.Max(open, 0);
-        close = Mathf.Max(close, 0);
-
-        robotArmSelection.ConfigureOpenCloseValues(open, close);
-
-        SaveButtonValues(open, close);
-    }
-
-    private void SaveSliderValues(int index, int min, int max, int start, bool flipDirection)
-    {
-        PlayerPrefs.SetInt($"Slider{index}_Min", min);
-        PlayerPrefs.SetInt($"Slider{index}_Max", max);
-        PlayerPrefs.SetInt($"Slider{index}_Start", start);
-        PlayerPrefs.SetInt($"Slider{index}_FlipDirection", flipDirection ? 1 : 0); // Save as 1 or 0
-        PlayerPrefs.Save();
-    }
-
-
-    private void SaveButtonValues(int open, int close)
-    {
-        PlayerPrefs.SetInt("OpenButtonValue", open);
-        PlayerPrefs.SetInt("CloseButtonValue", close);
-        PlayerPrefs.Save();
-    }
-
-    public void LoadSliderValues()
-    {
-        for (int i = 1; i <= 5; i++)
-        {
-            int min = PlayerPrefs.GetInt($"Slider{i}_Min", 0);
-            int max = PlayerPrefs.GetInt($"Slider{i}_Max", 180);
-            int start = PlayerPrefs.GetInt($"Slider{i}_Start", 90);
-            bool flipDirection = PlayerPrefs.GetInt($"Slider{i}_FlipDirection", 0) == 1;
-
-            robotArmSelection.ConfigureSliderValue(i - 1, min, max, start, flipDirection);
-
-            switch (i)
+            if (group.mainButton != null)
             {
-                case 1:
-                    // slider1MinValueIn.placeholder.GetComponent<TMP_Text>().text = min.ToString();
-                    // slider1MaxValueIn.placeholder.GetComponent<TMP_Text>().text = max.ToString();
-                    // slider1StartValueIn.placeholder.GetComponent<TMP_Text>().text = start.ToString();
-                    // slider1DirectionToggle.isOn = flipDirection;
+                var img = group.mainButton.GetComponent<Image>();
+                if (img != null && group.spriteClosed != null)
+                    img.sprite = group.spriteClosed;
 
-                    slider1MinValueIn.text = min.ToString();
-                    slider1MaxValueIn.text = max.ToString();
-                    slider1StartValueIn.text = start.ToString();
-                    slider1DirectionToggle.isOn = flipDirection;
+                group.mainButton.onClick.AddListener(() => ToggleGroup(group));
+            }
 
-                    break;
-                case 2:
-                    // slider2MinValueIn.placeholder.GetComponent<TMP_Text>().text = min.ToString();
-                    // slider2MaxValueIn.placeholder.GetComponent<TMP_Text>().text = max.ToString();
-                    // slider2StartValueIn.placeholder.GetComponent<TMP_Text>().text = start.ToString();
-                    // slider2DirectionToggle.isOn = flipDirection;
+            LoadSliderGroup(group);
+            HookAutoSave(group);
+            HookDirectionRadios(group);
+        }
 
-                    slider2MinValueIn.text = min.ToString();
-                    slider2MaxValueIn.text = max.ToString();
-                    slider2StartValueIn.text = start.ToString();
-                    slider2DirectionToggle.isOn = flipDirection;
-                    break;
-                case 3:
-                    // slider3MinValueIn.placeholder.GetComponent<TMP_Text>().text = min.ToString();
-                    // slider3MaxValueIn.placeholder.GetComponent<TMP_Text>().text = max.ToString();
-                    // slider3StartValueIn.placeholder.GetComponent<TMP_Text>().text = start.ToString();
-                    // slider3DirectionToggle.isOn = flipDirection;
+        // Setup Buttons group accordion
+        if (buttonsSettingsPanel != null)
+            buttonsSettingsPanel.SetActive(false);
 
-                    slider3MinValueIn.text = min.ToString();
-                    slider3MaxValueIn.text = max.ToString();
-                    slider3StartValueIn.text = start.ToString();
-                    slider3DirectionToggle.isOn = flipDirection;
-                    break;
-                case 4:
-                    // slider4MinValueIn.placeholder.GetComponent<TMP_Text>().text = min.ToString();
-                    // slider4MaxValueIn.placeholder.GetComponent<TMP_Text>().text = max.ToString();
-                    // slider4StartValueIn.placeholder.GetComponent<TMP_Text>().text = start.ToString();
-                    // slider4DirectionToggle.isOn = flipDirection;
+        if (buttonsHeaderButton != null)
+        {
+            var img = buttonsHeaderButton.GetComponent<Image>();
+            if (img != null && buttonsSpriteClosed != null)
+                img.sprite = buttonsSpriteClosed;
 
-                    slider4MinValueIn.text = min.ToString();
-                    slider4MaxValueIn.text = max.ToString();
-                    slider4StartValueIn.text = start.ToString();
-                    slider4DirectionToggle.isOn = flipDirection;
-                    break;
-                case 5:
-                    // slider5MinValueIn.placeholder.GetComponent<TMP_Text>().text = min.ToString();
-                    // slider5MaxValueIn.placeholder.GetComponent<TMP_Text>().text = max.ToString();
-                    // slider5StartValueIn.placeholder.GetComponent<TMP_Text>().text = start.ToString();
-                    // slider5DirectionToggle.isOn = flipDirection;
+            buttonsHeaderButton.onClick.AddListener(ToggleButtonsAccordion);
+        }
 
-                    slider5MinValueIn.text = min.ToString();
-                    slider5MaxValueIn.text = max.ToString();
-                    slider5StartValueIn.text = start.ToString();
-                    slider5DirectionToggle.isOn = flipDirection;
-                    break;
+        // Load button open/close values
+        int open = PlayerPrefs.GetInt(openKey, 105);
+        int close = PlayerPrefs.GetInt(closeKey, 177);
+        robotArmSelection?.ConfigureOpenCloseValues(open, close);
+
+        if (openButtonValueIn) openButtonValueIn.text = open.ToString();
+        if (closeButtonValueIn) closeButtonValueIn.text = close.ToString();
+
+        if (openButtonValueIn) openButtonValueIn.onEndEdit.AddListener(_ => SaveButtonValues());
+        if (closeButtonValueIn) closeButtonValueIn.onEndEdit.AddListener(_ => SaveButtonValues());
+    }
+
+    // Accordion for slider groups
+    void ToggleGroup(SliderGroup group)
+    {
+        if (group.settingsPanel == null || group.mainButton == null) return;
+
+        bool isActive = group.settingsPanel.activeSelf;
+        group.settingsPanel.SetActive(!isActive);
+
+        var img = group.mainButton.GetComponent<Image>();
+        if (img != null)
+            img.sprite = isActive ? group.spriteClosed : group.spriteOpened;
+    }
+
+    // Accordion for Buttons group
+    void ToggleButtonsAccordion()
+    {
+        if (buttonsSettingsPanel == null || buttonsHeaderButton == null) return;
+
+        bool isActive = buttonsSettingsPanel.activeSelf;
+        buttonsSettingsPanel.SetActive(!isActive);
+
+        var img = buttonsHeaderButton.GetComponent<Image>();
+        if (img != null)
+            img.sprite = isActive ? buttonsSpriteClosed : buttonsSpriteOpened;
+    }
+
+    // Auto-save for inputs
+    void HookAutoSave(SliderGroup group)
+    {
+        if (group.minValueField)
+            group.minValueField.onEndEdit.AddListener(_ => SaveSliderGroup(group));
+
+        if (group.maxValueField)
+            group.maxValueField.onEndEdit.AddListener(_ => SaveSliderGroup(group));
+
+        if (group.startValueField)
+            group.startValueField.onEndEdit.AddListener(_ => SaveSliderGroup(group));
+    }
+
+    // Radio using LeanToggle (two options: 0 = Off, 1 = On)
+    void HookDirectionRadios(SliderGroup group)
+    {
+        if (group.directionOptions == null || group.directionOptions.Count < 2) return;
+
+        for (int i = 0; i < group.directionOptions.Count; i++)
+        {
+            int idx = i;
+            var t = group.directionOptions[idx];
+            if (t == null) continue;
+
+            // We'll control siblings ourselves
+            t.TurnOffSiblings = false;
+
+            // When an option turns ON, switch selection
+            t.OnOn.AddListener(() => OnDirectionSelected(group, idx));
+
+            // When the active option turns OFF by user, snap it back ON to keep radio valid
+            t.OnOff.AddListener(() =>
+            {
+                if (!isProgrammatic && group.currentDirectionIndex == idx)
+                {
+                    t.On = true;
+                }
+            });
+        }
+
+        // Ensure UI matches loaded state
+        ApplyDirectionUI(group, group.currentDirectionIndex, playTransitions: false);
+    }
+
+    void OnDirectionSelected(SliderGroup group, int newIndex)
+    {
+        if (newIndex == group.currentDirectionIndex) return;
+
+        ApplyDirectionUI(group, newIndex, playTransitions: true);
+        SaveSliderGroup(group); // persists and updates robotArmSelection
+    }
+
+    void ApplyDirectionUI(SliderGroup group, int index, bool playTransitions)
+    {
+        if (group.directionOptions == null || group.directionOptions.Count < 2) return;
+
+        isProgrammatic = true;
+
+        for (int i = 0; i < group.directionOptions.Count; i++)
+        {
+            var t = group.directionOptions[i];
+            if (t == null) continue;
+
+            bool shouldBeOn = (i == index);
+            if (playTransitions)
+            {
+                if (shouldBeOn) t.TurnOn(); else t.TurnOff();
+            }
+            else
+            {
+                t.On = shouldBeOn;
             }
         }
 
-        int open = PlayerPrefs.GetInt("OpenButtonValue", 105);
-        int close = PlayerPrefs.GetInt("CloseButtonValue", 177);
+        group.currentDirectionIndex = index; // 0 = Off, 1 = On
 
-        robotArmSelection.ConfigureOpenCloseValues(open, close);
-
-        // openButtonValueIn.placeholder.GetComponent<TMP_Text>().text = open.ToString();
-        // closeButtonValueIn.placeholder.GetComponent<TMP_Text>().text = close.ToString();
-
-        openButtonValueIn.text = open.ToString();
-        closeButtonValueIn.text = close.ToString();
+        isProgrammatic = false;
     }
 
+    void SaveSliderGroup(SliderGroup group)
+    {
+        int min = ParseInt(group.minValueField, 0);
+        int max = ParseInt(group.maxValueField, 180);
+        int start = ParseInt(group.startValueField, 90);
+
+        min = Mathf.Max(min, 0);
+        max = Mathf.Max(max, min);
+        start = Mathf.Clamp(start, min, max);
+
+        // Map radio to flip: index 0 = Off (flip=0), index 1 = On (flip=1)
+        int flipInt = Mathf.Clamp(group.currentDirectionIndex, 0, 1);
+        bool flip = flipInt == 1;
+
+        // Save
+        if (!string.IsNullOrEmpty(group.minKey)) PlayerPrefs.SetInt(group.minKey, min);
+        if (!string.IsNullOrEmpty(group.maxKey)) PlayerPrefs.SetInt(group.maxKey, max);
+        if (!string.IsNullOrEmpty(group.startKey)) PlayerPrefs.SetInt(group.startKey, start);
+        if (!string.IsNullOrEmpty(group.flipKey)) PlayerPrefs.SetInt(group.flipKey, flip ? 1 : 0);
+        PlayerPrefs.Save();
+
+        // Apply to robot
+        int index = sliderGroups.IndexOf(group);
+        if (index >= 0)
+            robotArmSelection?.ConfigureSliderValue(index, min, max, start, flip);
+    }
+
+    void LoadSliderGroup(SliderGroup group)
+    {
+        int min = PlayerPrefs.GetInt(group.minKey, 0);
+        int max = PlayerPrefs.GetInt(group.maxKey, 180);
+        int start = PlayerPrefs.GetInt(group.startKey, 90);
+        int flipI = PlayerPrefs.GetInt(group.flipKey, 0); // 0 = Off, 1 = On
+
+        if (group.minValueField) group.minValueField.text = min.ToString();
+        if (group.maxValueField) group.maxValueField.text = max.ToString();
+        if (group.startValueField) group.startValueField.text = start.ToString();
+
+        // Update radio state to match saved flip
+        group.currentDirectionIndex = Mathf.Clamp(flipI, 0, 1);
+        ApplyDirectionUI(group, group.currentDirectionIndex, playTransitions: false);
+
+        // Push to robot
+        int index = sliderGroups.IndexOf(group);
+        if (index >= 0)
+            robotArmSelection?.ConfigureSliderValue(index, min, max, start, flipI == 1);
+    }
+
+    void SaveButtonValues()
+    {
+        int open = ParseInt(openButtonValueIn, 105);
+        int close = ParseInt(closeButtonValueIn, 177);
+
+        PlayerPrefs.SetInt(openKey, open);
+        PlayerPrefs.SetInt(closeKey, close);
+        PlayerPrefs.Save();
+
+        robotArmSelection?.ConfigureOpenCloseValues(open, close);
+    }
+
+    int ParseInt(TMP_InputField field, int defaultValue)
+    {
+        if (field == null) return defaultValue;
+        return int.TryParse(field.text, out int v) ? v : defaultValue;
+    }
+
+    // Show/hide this panel and update visible slider main buttons based on SelectedModelIndex
     public void ShowSliderConfigPanel()
     {
-        sliderConfigPanel.SetActive(true);
+        if (sliderConfigPanel != null) sliderConfigPanel.SetActive(true);
+
+        // Update which main buttons are visible each time the panel is shown
+        UpdateVisibleMainButtonsByModel();
     }
 
     public void HideSliderConfigPanel()
     {
-        sliderConfigPanel.SetActive(false);
+        if (sliderConfigPanel != null) sliderConfigPanel.SetActive(false);
     }
 
-    public void ConfirmClickTest()
+    // Determine and apply visibility of slider main buttons according to selected model
+    void UpdateVisibleMainButtonsByModel()
     {
-        OnSliderConfirmClicked();
-        HideSliderConfigPanel();
+        int selectedModelIndex = PlayerPrefs.GetInt("SelectedModelIndex", 0);
+
+        // Map:
+        // 0 -> show sliders 1..3
+        // 1 or 2 (5 / 5b) -> show sliders 1..4
+        // 3 (6) -> show sliders 1..5
+        int visibleCount;
+        if (selectedModelIndex == 0)
+        {
+            visibleCount = 3;
+        }
+        else if (selectedModelIndex == 1 || selectedModelIndex == 2)
+        {
+            visibleCount = 4;
+        }
+        else if (selectedModelIndex == 3)
+        {
+            visibleCount = 5;
+        }
+        else
+        {
+            // Fallback: clamp to available groups, defaulting to 3 minimum if possible
+            visibleCount = Mathf.Clamp(3, 0, sliderGroups.Count);
+        }
+
+        for (int i = 0; i < sliderGroups.Count; i++)
+        {
+            var group = sliderGroups[i];
+            bool shouldShow = i < visibleCount;
+
+            if (group.mainButton != null)
+                group.mainButton.gameObject.SetActive(shouldShow);
+
+            // If hiding a group, also collapse its settings panel and set closed sprite
+            if (!shouldShow)
+            {
+                if (group.settingsPanel != null)
+                    group.settingsPanel.SetActive(false);
+
+                if (group.mainButton != null)
+                {
+                    var img = group.mainButton.GetComponent<Image>();
+                    if (img != null && group.spriteClosed != null)
+                        img.sprite = group.spriteClosed;
+                }
+            }
+        }
     }
 }

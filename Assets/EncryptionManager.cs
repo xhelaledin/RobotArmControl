@@ -1,13 +1,19 @@
 using UnityEngine;
 using TMPro;
+using UnityEngine.UI;
 
 public class EncryptionManager : MonoBehaviour
 {
     [Header("UI Components")]
-    public TMP_Dropdown encryptionDropdown;
+    public AdvancedDropdown encryptionDropdown; 
     public TMP_InputField keyInputField;
     public TMP_Text keyStatusText;
     public GameObject keyPanel;
+
+    [Header("Panel Buttons")]
+    public GameObject button0; // Shown when index 0 selected
+    public GameObject button1; // Shown when index 1 selected
+    public GameObject button2; // Shown when index 2 selected
 
     [Header("Encryption Backends")]
     public AESEncryptionManager aesManager;
@@ -18,15 +24,27 @@ public class EncryptionManager : MonoBehaviour
     private void Start()
     {
         encryptionTypeIndex = PlayerPrefs.GetInt("EncryptionTypeIndex", 0);
-        encryptionDropdown.value = encryptionTypeIndex;
-        encryptionDropdown.onValueChanged.AddListener(OnEncryptionChanged);
+
+        if (encryptionDropdown != null)
+        {
+            encryptionDropdown.SelectOption(encryptionTypeIndex);
+            encryptionDropdown.onChangedValue += OnEncryptionChanged;
+        }
 
         aesManager.SetKey(PlayerPrefs.GetString("AESKey", ""));
         desManager.SetKey(PlayerPrefs.GetString("DESKey", ""));
 
         keyInputField.onValueChanged.AddListener(OnKeyInputChanged);
+        keyInputField.onEndEdit.AddListener(_ => OnSetKeyClicked());
 
         UpdateKeyStatus();
+        UpdateButtonVisibility();
+    }
+
+    private void OnDestroy()
+    {
+        if (encryptionDropdown != null)
+            encryptionDropdown.onChangedValue -= OnEncryptionChanged;
     }
 
     public void OnEncryptionChanged(int index)
@@ -36,23 +54,45 @@ public class EncryptionManager : MonoBehaviour
         PlayerPrefs.Save();
 
         keyInputField.characterLimit = GetRequiredKeyLength();
+        UpdateButtonVisibility();
 
         if (encryptionTypeIndex == 0)
         {
-            keyPanel.SetActive(false);
+            // Hide input field but keep the panel open
+            keyInputField.gameObject.SetActive(false);
             keyStatusText.text = "Encryption: None (No Key Required)";
             keyStatusText.color = Color.gray;
         }
         else
         {
-            ShowKeyPanel(); // Refresh with correct key
+            keyInputField.gameObject.SetActive(true);
+            ShowKeyPanel();
             UpdateKeyStatus();
         }
+    }
+
+    private void UpdateButtonVisibility()
+    {
+        button0?.SetActive(encryptionTypeIndex == 0);
+        button1?.SetActive(encryptionTypeIndex == 1);
+        button2?.SetActive(encryptionTypeIndex == 2);
     }
 
     public void ShowKeyPanel()
     {
         keyPanel.SetActive(true);
+
+        // Handle "None" encryption type
+        if (encryptionTypeIndex == 0)
+        {
+            keyInputField.gameObject.SetActive(false);
+            keyStatusText.text = "Encryption: None (No Key Required)";
+            keyStatusText.color = Color.gray;
+            return;
+        }
+
+        // Otherwise, show input field and load saved key
+        keyInputField.gameObject.SetActive(true);
 
         string currentKey = encryptionTypeIndex switch
         {
@@ -76,6 +116,7 @@ public class EncryptionManager : MonoBehaviour
         }
     }
 
+
     public void OnCancelClicked()
     {
         keyPanel.SetActive(false);
@@ -83,6 +124,8 @@ public class EncryptionManager : MonoBehaviour
 
     public void OnSetKeyClicked()
     {
+        if (encryptionTypeIndex == 0) return;
+
         string inputKey = keyInputField.text;
         int requiredLength = GetRequiredKeyLength();
 
@@ -106,12 +149,19 @@ public class EncryptionManager : MonoBehaviour
         }
 
         PlayerPrefs.Save();
-        keyPanel.SetActive(false);
         UpdateKeyStatus();
     }
 
     private void OnKeyInputChanged(string input)
     {
+        if (encryptionTypeIndex == 0)
+        {
+            // No validation for "None" encryption
+            keyStatusText.text = "Encryption: None (No Key Required)";
+            keyStatusText.color = Color.gray;
+            return;
+        }
+
         int requiredLength = GetRequiredKeyLength();
         if (input.Length == requiredLength)
         {

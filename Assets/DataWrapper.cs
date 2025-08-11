@@ -42,8 +42,8 @@ public enum PrefType
 
 public enum PrefCategory
 {
-    SliderConfig,
     BluetoothCommandConstruct,
     Encryption,
+    SliderConfig,
     Model3DVisual
 }

@@ -21,7 +21,7 @@ public static class PlayerPrefsKeyRegistry
         { "SingleModeToggle", (PrefType.Int, PrefCategory.BluetoothCommandConstruct) },
 
         // Encryption
-            { "KeyPref", (PrefType.String, PrefCategory.Encryption) },
+        { "KeyPref", (PrefType.String, PrefCategory.Encryption) },
         { "AESKey", (PrefType.String, PrefCategory.Encryption) },
         { "AES_Encryption_Key", (PrefType.String, PrefCategory.Encryption) },
         { "DESKey", (PrefType.String, PrefCategory.Encryption) },
@@ -49,12 +49,12 @@ public static class PlayerPrefsKeyRegistry
         { "Slider5_Max", (PrefType.Int, PrefCategory.SliderConfig) },
         { "Slider5_Start", (PrefType.Int, PrefCategory.SliderConfig) },
         { "Slider5_FlipDirection", (PrefType.Int, PrefCategory.SliderConfig) },
-        { "SelectedModelIndex", (PrefType.Int, PrefCategory.SliderConfig) },
         { "OpenButtonPressed", (PrefType.Int, PrefCategory.SliderConfig) },
         { "CloseButtonPressed", (PrefType.Int, PrefCategory.SliderConfig) },
+        { "SelectedModelIndex", (PrefType.Int, PrefCategory.SliderConfig) },
 
         // 3D Model Visual Start Rotations and Directions
-        { "model4startRotationpart1", (PrefType.Float, PrefCategory.Model3DVisual) },
+            { "model4startRotationpart1", (PrefType.Float, PrefCategory.Model3DVisual) },
         { "model4startRotationpart2", (PrefType.Float, PrefCategory.Model3DVisual) },
         { "model4startRotationpart3", (PrefType.Float, PrefCategory.Model3DVisual) },
         { "model4startRotationpart4", (PrefType.Float, PrefCategory.Model3DVisual) },

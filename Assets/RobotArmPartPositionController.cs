@@ -231,7 +231,7 @@ public class RobotArmPartPositionController : MonoBehaviour
 
         PlayerPrefs.Save();
         HidePanel();
-        sliderValueConfig?.LoadSliderValues();
+        // sliderValueConfig?.LoadSliderValues();
 
         robotArmSelection.MoveModelAfterStartPosEdit();
     }
