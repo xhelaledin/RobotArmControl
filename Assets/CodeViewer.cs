@@ -89,7 +89,7 @@ public class CodeViewer : MonoBehaviour
         tmp.richText = true;
         tmp.fontSize = fontSize;
         tmp.alignment = TextAlignmentOptions.TopLeft;
-        tmp.enableWordWrapping = false;    // default; per-group override in ResizeContentToText
+        tmp.textWrappingMode = TextWrappingModes.NoWrap;    // default; per-group override in ResizeContentToText
         tmp.overflowMode = TextOverflowModes.Overflow;
     }
 
@@ -113,7 +113,7 @@ public class CodeViewer : MonoBehaviour
         if (group.wrapText)
         {
             // Vertical scroll only: fix width to viewport, compute needed height
-            text.enableWordWrapping = true;
+            text.textWrappingMode = TextWrappingModes.Normal;
             text.overflowMode = TextOverflowModes.Overflow;
 
             float targetWidth = Mathf.Max(0.0f, vp.rect.width);
@@ -132,7 +132,7 @@ public class CodeViewer : MonoBehaviour
         else
         {
             // Horizontal + vertical scroll: no wrapping; measure required width and height
-            text.enableWordWrapping = false;
+            text.textWrappingMode = TextWrappingModes.NoWrap;
             text.overflowMode = TextOverflowModes.Overflow;
 
             text.ForceMeshUpdate();

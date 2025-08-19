@@ -49,12 +49,18 @@ public static class PlayerPrefsKeyRegistry
         { "Slider5_Max", (PrefType.Int, PrefCategory.SliderConfig) },
         { "Slider5_Start", (PrefType.Int, PrefCategory.SliderConfig) },
         { "Slider5_FlipDirection", (PrefType.Int, PrefCategory.SliderConfig) },
+        { "OpenButtonValue", (PrefType.Int, PrefCategory.SliderConfig) },
+        { "CloseButtonValue", (PrefType.Int, PrefCategory.SliderConfig) },
+        { "SendContinuously", (PrefType.Int, PrefCategory.SliderConfig) },
+        { "SendIntervalStep", (PrefType.Int, PrefCategory.SliderConfig) },
+
+        // General Saved with slider config
         { "OpenButtonPressed", (PrefType.Int, PrefCategory.SliderConfig) },
         { "CloseButtonPressed", (PrefType.Int, PrefCategory.SliderConfig) },
         { "SelectedModelIndex", (PrefType.Int, PrefCategory.SliderConfig) },
 
         // 3D Model Visual Start Rotations and Directions
-            { "model4startRotationpart1", (PrefType.Float, PrefCategory.Model3DVisual) },
+        { "model4startRotationpart1", (PrefType.Float, PrefCategory.Model3DVisual) },
         { "model4startRotationpart2", (PrefType.Float, PrefCategory.Model3DVisual) },
         { "model4startRotationpart3", (PrefType.Float, PrefCategory.Model3DVisual) },
         { "model4startRotationpart4", (PrefType.Float, PrefCategory.Model3DVisual) },

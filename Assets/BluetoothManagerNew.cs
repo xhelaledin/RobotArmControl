@@ -8,7 +8,7 @@ using TMPro;
 using UnityEngine.EventSystems;
 using System.Collections;
 
-public class BluetoothManager : MonoBehaviour
+public class BluetoothManagerNew : MonoBehaviour
 {
     [Header("UI Elements")]
 
@@ -17,12 +17,6 @@ public class BluetoothManager : MonoBehaviour
     public GameObject scanningAnimation;
     public GameObject settingsPanel;
     public GameObject bluetoothMainPanel;
-
-    [Header("Bluetooth Status Button")]
-    public Button mainPageBluetoothButton;
-    public Sprite disconnectedSprite;
-    public Sprite connectedSprite;
-
 
     [Header("Unified List UI")]
     public Transform pairedContentContainer;
@@ -156,11 +150,6 @@ public class BluetoothManager : MonoBehaviour
             bluetoothMainPanel.SetActive(false);
         }
         StopScanUI();
-    }
-
-    public void UpdateButtonSprite(bool state)
-    {
-        mainPageBluetoothButton.image.sprite = state ? connectedSprite : disconnectedSprite;
     }
 
     public void OnScanToggleButtonPressed()
@@ -300,6 +289,19 @@ public class BluetoothManager : MonoBehaviour
         }
     }
 
+
+    // public void OnDeviceSelected(string address)
+    // {
+    //     if (isConnected && address == lastConnectedMAC)
+    //     {
+    //         StopConnection();
+    //     }
+    //     else
+    //     {
+    //         StartConnection(address);
+    //     }
+    // }
+
     public void OnDeviceSelected(string address)
     {
         var deviceEntry = FindDeviceEntryByMAC(address, pairedContentContainer);
@@ -377,7 +379,6 @@ public class BluetoothManager : MonoBehaviour
             // Toast("Connected to " + lastConnectedName);
             Toast("Connected to " + FindDeviceNameByMAC(lastConnectedMAC));
 
-            UpdateButtonSprite(true);
 
             UpdateConnectionStatus("Status: Connected to " + lastConnectedName);
 
@@ -456,8 +457,6 @@ public class BluetoothManager : MonoBehaviour
         {
             Debug.LogWarning("Java StopConnection call failed (ignored): " + ex.Message);
         }
-
-        UpdateButtonSprite(false);
 
         // Refresh UI lists to update connection labels
         PopulateList(lastPairedList, pairedContentContainer, OnDeviceSelected);
