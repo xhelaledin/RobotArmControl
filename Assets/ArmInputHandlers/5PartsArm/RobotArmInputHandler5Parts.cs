@@ -97,18 +97,18 @@ public class RobotArmInputHandler5Parts : MonoBehaviour
     // Claw
     public void OpenClaw()
     {
-        part5A.localEulerAngles = new Vector3(270f, 170f, 0f);
-        part6A.localEulerAngles = new Vector3(90f, 190.000015f, 0f);
-        part5B.localEulerAngles = new Vector3(270f, 197.999985f, 0f);
-        part6B.localEulerAngles = new Vector3(270f, 197.999985f, 0f);
+        part5A.localEulerAngles = new Vector3(270f, 170f, 300f);
+        part6A.localEulerAngles = new Vector3(90f, 190f, 62f);
+        part5B.localEulerAngles = new Vector3(270f, 198f, 300f);
+        part6B.localEulerAngles = new Vector3(270f, 198f, 222f);
     }
 
     public void CloseClaw()
     {
-        part5A.localEulerAngles = new Vector3(-90f, 0f, 170f);
-        part6A.localEulerAngles = new Vector3(-90f, 0f, 58f);
-        part5B.localEulerAngles = new Vector3(90f, 0f, 170f);
-        part6B.localEulerAngles = new Vector3(-90f, 0f, 58f);
+        part5A.localEulerAngles = new Vector3(270f, 170f, 275f);
+        part6A.localEulerAngles = new Vector3(90f, 190f, 50f);
+        part5B.localEulerAngles = new Vector3(270f, 198f, 355f);
+        part6B.localEulerAngles = new Vector3(270f, 198f, 230f);
     }
 
     public void ApplySavedValues(int[] saveValues)

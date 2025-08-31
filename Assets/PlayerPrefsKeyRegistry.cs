@@ -16,8 +16,8 @@ public static class PlayerPrefsKeyRegistry
         { "Close_Command", (PrefType.String, PrefCategory.BluetoothCommandConstruct) },
         { "Command_Delimiter", (PrefType.String, PrefCategory.BluetoothCommandConstruct) },
         { "List_Delimiter", (PrefType.String, PrefCategory.BluetoothCommandConstruct) },
-        { "OpenButtonValue", (PrefType.Int, PrefCategory.BluetoothCommandConstruct) },
-        { "CloseButtonValue", (PrefType.Int, PrefCategory.BluetoothCommandConstruct) },
+        // { "OpenButtonValue", (PrefType.Int, PrefCategory.BluetoothCommandConstruct) },
+        // { "CloseButtonValue", (PrefType.Int, PrefCategory.BluetoothCommandConstruct) },
         { "SingleModeToggle", (PrefType.Int, PrefCategory.BluetoothCommandConstruct) },
 
         // Encryption

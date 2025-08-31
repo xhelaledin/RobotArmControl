@@ -70,30 +70,30 @@ public class RobotArmInputHandler4Parts : MonoBehaviour
     {
         var adj = directions[1] ? rotation : -rotation;
         var angle = adj + part2StartRotation;
-        part2.localEulerAngles = new Vector3(270f, 0.185f, 170 + angle);
+        part2.localEulerAngles = new Vector3(270f, 0.185f, 80 + angle);
     }
 
     public void setPart3Rotation(float rotation)
     {
         var adj = directions[2] ? rotation : -rotation;
         var angle = adj + part3StartRotation;
-        part3.localEulerAngles = new Vector3(270f, 129.6f, 340 + angle);
+        part3.localEulerAngles = new Vector3(270f, 129.6f, 20 + angle);
     }
 
     public void OpenClaw()
     {
-        part4A.localEulerAngles = new Vector3(270f, 170f, 0f);
-        part5A.localEulerAngles = new Vector3(90f, 190.000015f, 0f);
-        part4B.localEulerAngles = new Vector3(270f, 197.999985f, 0f);
-        part5B.localEulerAngles = new Vector3(270f, 197.999985f, 0f);
+        part4A.localEulerAngles = new Vector3(270f, 170f, 300f);
+        part5A.localEulerAngles = new Vector3(90f, 190f, 62f);
+        part4B.localEulerAngles = new Vector3(270f, 198f, 300f);
+        part5B.localEulerAngles = new Vector3(270f, 198f, 222f);
     }
 
     public void CloseClaw()
     {
-        part4A.localEulerAngles = new Vector3(-90f, 0f, 170f);
-        part5A.localEulerAngles = new Vector3(-90f, 0f, 58f);
-        part4B.localEulerAngles = new Vector3(90f, 0f, 170f);
-        part5B.localEulerAngles = new Vector3(-90f, 0f, 58f);
+        part4A.localEulerAngles = new Vector3(270f, 170f, 275f);
+        part5A.localEulerAngles = new Vector3(90f, 190f, 50f);
+        part4B.localEulerAngles = new Vector3(270f, 198f, 355f);
+        part5B.localEulerAngles = new Vector3(270f, 198f, 192f);
     }
 
     public void ApplySavedValues(int[] saveValues)

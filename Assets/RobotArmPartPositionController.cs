@@ -1,4 +1,3 @@
-// RobotArmPartPositionController.cs
 using UnityEngine;
 using UnityEngine.UI;
 
