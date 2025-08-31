@@ -88,6 +88,8 @@ public class ModelSelectorRadio : MonoBehaviour
         // 5. Swap preview sprite
         if (previewImage != null && currentIndex < modelSprites.Count)
             previewImage.sprite = modelSprites[currentIndex];
+
+        robotArmSelection.MoveModelByStartValues();
     }
 
     // Optional panel show/hide

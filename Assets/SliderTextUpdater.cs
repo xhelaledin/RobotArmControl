@@ -41,6 +41,9 @@ public class SliderTextUpdater : MonoBehaviour
     private TextMeshProUGUI[] _currentTexts;
     private bool[] _flipped; // Tracks FlipDirection for each slider
 
+    [Header("Other")]
+    public RobotArmSelection robotArmSelection;
+
     private void Awake()
     {
         _sliders = new[] { slider1, slider2, slider3, slider4, slider5 };
@@ -133,6 +136,8 @@ public class SliderTextUpdater : MonoBehaviour
 
         // Update current value text
         UpdateCurrentValueText(index);
+
+        robotArmSelection.MoveModelByStartValues();
     }
 
     private void UpdateCurrentValueText(int index)

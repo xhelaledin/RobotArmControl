@@ -116,7 +116,7 @@ public class RobotArmInputHandler6Parts : MonoBehaviour
         part6A.localEulerAngles = new Vector3(270f, 170f, 275f);
         part7A.localEulerAngles = new Vector3(90f, 190f, 50f);
         part6B.localEulerAngles = new Vector3(270f, 198f, 355f);
-        part7B.localEulerAngles = new Vector3(270f, 198f, 230f);
+        part7B.localEulerAngles = new Vector3(270f, 198f, 192f);
     }
 
     public void ApplySavedValues(int[] saveValues)

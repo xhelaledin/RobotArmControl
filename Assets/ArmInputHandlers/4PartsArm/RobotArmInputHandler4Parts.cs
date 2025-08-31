@@ -102,7 +102,7 @@ public class RobotArmInputHandler4Parts : MonoBehaviour
         setPart2Rotation(saveValues[1]);
         setPart3Rotation(saveValues[2]);
 
-        if (saveValues.Length > 5 && saveValues[3] == 1)
+        if (saveValues.Length > 3 && saveValues[3] == 1)
             CloseClaw();
         else
             OpenClaw();

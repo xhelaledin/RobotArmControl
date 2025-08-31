@@ -69,21 +69,21 @@ public class RobotArmInputHandler5BParts : MonoBehaviour
     {
         float adj = directions[0] ? delta : -delta;
         float angle = adj + part1StartRotation;
-        part1.localEulerAngles = new Vector3(180f, 0f, 270 + angle);
+        part1.localEulerAngles = new Vector3(180f, 0f, 90 + angle);
     }
 
     public void setPart2Rotation(float delta)
     {
         float adj = directions[1] ? delta : -delta;
         float angle = adj + part2StartRotation;
-        part2.localEulerAngles = new Vector3(270f, 0.185f, 260 + angle);
+        part2.localEulerAngles = new Vector3(270f, 0.185f, 80 + angle);
     }
 
     public void setPart3Rotation(float delta)
     {
         float adj = directions[2] ? delta : -delta;
         float angle = adj + part3StartRotation;
-        part3.localEulerAngles = new Vector3(270f, 129.6f, 310 + angle);
+        part3.localEulerAngles = new Vector3(270f, 129.6f, 20 + angle);
     }
 
     public void setPart4Rotation(float delta)
@@ -107,7 +107,7 @@ public class RobotArmInputHandler5BParts : MonoBehaviour
         part5A.localEulerAngles = new Vector3(270f, 170f, 275f);
         part6A.localEulerAngles = new Vector3(90f, 190f, 50f);
         part5B.localEulerAngles = new Vector3(270f, 198f, 355f);
-        part6B.localEulerAngles = new Vector3(270f, 198f, 230f);
+        part6B.localEulerAngles = new Vector3(270f, 198f, 192f);
     }
 
     public void ApplySavedValues(int[] saveValues)
