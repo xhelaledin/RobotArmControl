@@ -64,6 +64,8 @@ public class SliderValueConfig : MonoBehaviour
 
     private bool isProgrammatic;
 
+    private int selectedModel;
+
     void Awake()
     {
         for (int i = 0; i < sliderGroups.Count; i++)
@@ -145,10 +147,31 @@ public class SliderValueConfig : MonoBehaviour
         robotArmSelection?.SetSendContinuouslyMode(sendContinuously, sendStep);
         sliderTextUpdater.RefreshAllFromPrefs();
     }
-
+    
     public void ShowSliderConfigPanel()
     {
         sliderConfigPanel.SetActive(true);
+        selectedModel = PlayerPrefs.GetInt("SelectedModelIndex", 0);
+
+        // Determine how many slider groups to show based on selected model
+        int visibleCount = selectedModel switch
+        {
+            0 => 3,
+            1 => 4,
+            2 => 4,
+            3 => 5,
+            _ => 0
+        };
+
+        for (int i = 0; i < sliderGroups.Count; i++)
+        {
+            bool shouldShow = i < visibleCount;
+            if (sliderGroups[i].mainButton != null)
+                sliderGroups[i].mainButton.gameObject.SetActive(shouldShow);
+
+            if (sliderGroups[i].settingsPanel != null)
+                sliderGroups[i].settingsPanel.SetActive(false); // Always start collapsed
+        }
     }
 
     public void HideSliderConfigPanel()
