@@ -46,7 +46,7 @@ public class AllModelsSaveData
     }
 }
 
-public class SaveManager : MonoBehaviour
+public class SaveManager : MonoBehaviour, IHideablePanel
 {
     public GameObject popupPanel;
     public TMP_InputField inputField;
@@ -84,7 +84,7 @@ public class SaveManager : MonoBehaviour
         if (popupSaveButton != null)
             popupSaveButton.onClick.AddListener(StartSavingProcess);
         if (popupCancelButton != null)
-            popupCancelButton.onClick.AddListener(ClosePopup);
+            popupCancelButton.onClick.AddListener(HidePanel);
     }
 
     private string GetSaveKey(int modelIndex, string saveName)
@@ -101,6 +101,8 @@ public class SaveManager : MonoBehaviour
     {
         popupPanel.SetActive(true);
         inputField.text = "";
+
+        PanelManager.Instance.RegisterPanel(this);
     }
 
     public void StartSavingProcess()
@@ -114,7 +116,7 @@ public class SaveManager : MonoBehaviour
         SaveArray(selectedModelIndex, saveName);
 
         Toast("Saved as: " + saveName);
-        ClosePopup();
+        HidePanel();
     }
 
     private string GenerateUniqueName(string baseName, HashSet<string> existingNames)
@@ -189,9 +191,14 @@ public class SaveManager : MonoBehaviour
         Debug.Log($"Saved data: {saveString}");
     }
 
-    public void ClosePopup()
+    public void HidePanel()
     {
         popupPanel.SetActive(false);
+    }
+
+    public bool IsPanelActive()
+    {
+        return popupPanel.activeSelf;
     }
 
     public void UpdateSelectedModelIndex(int newIndex)

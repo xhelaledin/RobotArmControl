@@ -6,12 +6,12 @@ using System;
 using System.Linq;
 using NativeFilePickerNamespace;
 
-public class PlayerPrefsBackup : MonoBehaviour
+public class PlayerPrefsBackup : MonoBehaviour, IHideablePanel, IHideablePanel2, IHideablePanel3
 {
     [Header("Panels")]
     public GameObject backupRestorePanel;  // Root panel holding backup & restore
-    public GameObject backupPanel;          // Backup subpanel
-    public GameObject restorePanel;         // Restore subpanel
+    public GameObject backupPanel;         // Backup subpanel
+    public GameObject restorePanel;        // Restore subpanel
 
     [Header("Category Manager")]
     public CategorySelectionManager categorySelectionManager;
@@ -81,6 +81,7 @@ public class PlayerPrefsBackup : MonoBehaviour
 #endif
     }
 
+    // === BACKUP PANEL ===
     public void ShowBackupPanel()
     {
         if (backupRestorePanel == null || backupPanel == null || restorePanel == null || categorySelectionManager == null)
@@ -92,7 +93,10 @@ public class PlayerPrefsBackup : MonoBehaviour
         backupRestorePanel.SetActive(true);
         backupPanel.SetActive(true);
 
-        var allCategories = PlayerPrefsKeyRegistry.KeyTypes.Values.Select(v => v.category).Distinct().ToList();
+        var allCategories = PlayerPrefsKeyRegistry.KeyTypes.Values
+            .Select(v => v.category)
+            .Distinct()
+            .ToList();
 
         var itemDataList = allCategories.Select(cat => new CategorySelectionManager.ItemData
         {
@@ -103,25 +107,76 @@ public class PlayerPrefsBackup : MonoBehaviour
 
         categorySelectionManager.RefreshToggleList(itemDataList);
         categorySelectionManager.ShowBackupPanel();
+
+        PanelManager.Instance.RegisterPanel(this);
+        PanelManager.Instance.PushPanel(
+            key: backupPanel,
+            hide: HidePanel,
+            isActive: IsPanelActive
+        );
     }
 
-    public void HideBackupPanel()
-    {
-        backupPanel?.SetActive(false);
-    }
+    public void HideBackupPanel() => backupPanel?.SetActive(false);
 
+    // IHideablePanel
+    public void HidePanel() => HideBackupPanel();
+    public bool IsPanelActive() => backupPanel != null && backupPanel.activeSelf;
+
+
+    // === BACKUP-RESTORE ROOT PANEL ===
     public void ShowBackupRestorePanel()
     {
-        backupRestorePanel?.SetActive(true);
+        if (backupRestorePanel == null)
+        {
+            Debug.LogError("[PlayerPrefsBackup] UI references missing!");
+            return;
+        }
+
+        backupRestorePanel.SetActive(true);
+
+        PanelManager.Instance.RegisterPanel2(this);
+        PanelManager.Instance.PushPanel(
+            key: backupRestorePanel,
+            hide: HidePanel2,
+            isActive: IsPanelActive2
+        );
     }
 
-    public void HideBackupRestorePanel()
+    public void HideBackupRestorePanel() => backupRestorePanel?.SetActive(false);
+
+    // IHideablePanel2
+    public void HidePanel2() => HideBackupRestorePanel();
+    public bool IsPanelActive2() => backupRestorePanel != null && backupRestorePanel.activeSelf;
+
+
+    // === RESTORE PANEL ===
+    public void ShowRestorePanel()
     {
-        backupRestorePanel?.SetActive(false);
+        if (restorePanel == null)
+        {
+            Debug.LogError("[PlayerPrefsBackup] Restore panel reference missing!");
+            return;
+        }
+
+        backupRestorePanel?.SetActive(true);
+        restorePanel.SetActive(true);
+
+        PanelManager.Instance.RegisterPanel3(this);
+        PanelManager.Instance.PushPanel(
+            key: restorePanel,
+            hide: HidePanel3,
+            isActive: IsPanelActive3
+        );
     }
 
-    // === RESTORE ===
+    public void HideRestorePanel() => restorePanel?.SetActive(false);
 
+    // IHideablePanel3
+    public void HidePanel3() => HideRestorePanel();
+    public bool IsPanelActive3() => restorePanel != null && restorePanel.activeSelf;
+
+
+    // === RESTORE LOGIC ===
     public void RestorePrefsFromFilePicker()
     {
 #if UNITY_ANDROID || UNITY_IOS
@@ -161,6 +216,9 @@ public class PlayerPrefsBackup : MonoBehaviour
 
                 categorySelectionManager.RefreshToggleList(itemDataList);
                 categorySelectionManager.ShowRestorePanel(path, availableCategories);
+
+                // also register restore panel with history
+                ShowRestorePanel();
             }
             catch (Exception ex)
             {
@@ -211,6 +269,7 @@ public class PlayerPrefsBackup : MonoBehaviour
         Debug.Log($"[PlayerPrefsBackup] PlayerPrefs restored. Total restored: {restored}");
 
         HideBackupRestorePanel();
+        HideRestorePanel();
 
         SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }

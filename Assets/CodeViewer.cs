@@ -6,7 +6,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
 
-public class CodeViewer : MonoBehaviour
+public class CodeViewer : MonoBehaviour, IHideablePanel, IHideablePanel2, IHideablePanel3
 {
     [System.Serializable]
     public class CodeGroup
@@ -175,21 +175,49 @@ public class CodeViewer : MonoBehaviour
     public void HidePanel2() => HidePanel(group2);
     public void HidePanel3() => HidePanel(group3);
 
-    void ShowPanel(CodeGroup group)
+    public void ShowPanel(CodeGroup group)
     {
         if (group?.panel != null)
         {
             group.panel.SetActive(true);
-            // Recalculate in case viewport size is different when shown
             StartCoroutine(DeferredResize(group));
+
+            // NEW: push this specific group to the unified history (bump-to-top)
+            PanelManager.Instance?.PushPanel(
+                key: group.panel,
+                hide: () => HidePanel(group),
+                isActive: () => group.panel != null && group.panel.activeSelf
+            );
         }
+
+        // Keep type-specific registration so HasActivePanels() remains correct
+        if (group == group1)
+            PanelManager.Instance.RegisterPanel(this as IHideablePanel);
+        else if (group == group2)
+            PanelManager.Instance.RegisterPanel2(this as IHideablePanel2);
+        else if (group == group3)
+            PanelManager.Instance.RegisterPanel3(this as IHideablePanel3);
     }
 
-    void HidePanel(CodeGroup group)
+    private void HidePanel(CodeGroup group)
     {
         if (group?.panel != null)
             group.panel.SetActive(false);
     }
+
+    // IHideablePanel
+    public void HidePanel() => HidePanel(group1);
+    public bool IsPanelActive() => group1?.panel != null && group1.panel.activeSelf;
+
+    // IHideablePanel2 — explicit implementation to avoid method conflicts
+    void IHideablePanel2.HidePanel2() => HidePanel(group2);
+    bool IHideablePanel2.IsPanelActive2() => group2?.panel != null && group2.panel.activeSelf;
+
+    // IHideablePanel3 — explicit implementation to avoid method conflicts
+    void IHideablePanel3.HidePanel3() => HidePanel(group3);
+    bool IHideablePanel3.IsPanelActive3() => group3?.panel != null && group3.panel.activeSelf;
+
+
 
     // --- Copy ---
     public void CopyGroup1() => CopyRawCode(group1);

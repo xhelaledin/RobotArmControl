@@ -103,6 +103,36 @@ public class RobotArmInputHandler6Parts : MonoBehaviour
         part5.localEulerAngles = new Vector3(0f, 0f, adj + part5StartRotation);
     }
 
+    public void setPart1RotationVisual(float delta)
+    {
+        float adj = directions[0] ? delta : -delta;
+        part1.localEulerAngles = new Vector3(180f, 0f, 90 + adj);
+    }
+
+    public void setPart2RotationVisual(float delta)
+    {
+        float adj = directions[1] ? delta : -delta;
+        part2.localEulerAngles = new Vector3(270f, 0.185f, 290 + adj);
+    }
+
+    public void setPart3RotationVisual(float delta)
+    {
+        float adj = directions[2] ? delta : -delta;
+        part3.localEulerAngles = new Vector3(270f, 129.6f, 240 + adj);
+    }
+
+    public void setPart4RotationVisual(float delta)
+    {
+        float adj = directions[3] ? delta : -delta;
+        part4.localEulerAngles = new Vector3(270f, 129.6f, 340 + adj);
+    }
+
+    public void setPart5RotationVisual(float delta)
+    {
+        float adj = directions[4] ? delta : -delta;
+        part5.localEulerAngles = new Vector3(0f, 0f, adj);
+    }
+
     public void OpenClaw()
     {
         part6A.localEulerAngles = new Vector3(270f, 170f, 300f);

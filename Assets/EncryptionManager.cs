@@ -2,7 +2,7 @@ using UnityEngine;
 using TMPro;
 using UnityEngine.UI;
 
-public class EncryptionManager : MonoBehaviour
+public class EncryptionManager : MonoBehaviour, IHideablePanel
 {
     [Header("UI Components")]
     public AdvancedDropdown encryptionDropdown; 
@@ -82,6 +82,8 @@ public class EncryptionManager : MonoBehaviour
     {
         keyPanel.SetActive(true);
 
+        PanelManager.Instance.RegisterPanel(this);
+        
         // Handle "None" encryption type
         if (encryptionTypeIndex == 0)
         {
@@ -116,10 +118,14 @@ public class EncryptionManager : MonoBehaviour
         }
     }
 
-
-    public void OnCancelClicked()
+    public void HidePanel()
     {
         keyPanel.SetActive(false);
+    }
+
+    public bool IsPanelActive()
+    {
+        return keyPanel.activeSelf;
     }
 
     public void OnSetKeyClicked()

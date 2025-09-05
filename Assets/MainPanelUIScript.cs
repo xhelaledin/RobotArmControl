@@ -2,8 +2,8 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
-public class MainPanelUIScript : MonoBehaviour
-{   
+public class MainPanelUIScript : MonoBehaviour, IHideablePanel, IHideablePanel2
+{
     [Header("Panels")]
     public GameObject savedPositionsPanel;
     public GameObject controlPanel;
@@ -23,17 +23,31 @@ public class MainPanelUIScript : MonoBehaviour
     public TextMeshProUGUI text1;
     public TextMeshProUGUI text2;
 
+    [Header("Classes")]
+    public RobotArmSelection robotArmSelection;
+    public ListManager listManager;
+
     // Show/Hide Saved Positions Panel
     public void ShowSavedPositionsPanel()
     {
         if (savedPositionsPanel != null)
             savedPositionsPanel.SetActive(true);
+
+        PanelManager.Instance.RegisterPanel(this);
     }
 
-    public void HideSavedPositionsPanel()
+    public void HidePanel()
     {
         if (savedPositionsPanel != null)
             savedPositionsPanel.SetActive(false);
+
+        ShowControlPanel();
+        robotArmSelection.MoveModelByStartValues();
+    }
+
+    public bool IsPanelActive()
+    {
+        return savedPositionsPanel.activeSelf;
     }
 
     // Show/Hide Control Panel with sprite & color swaps
@@ -58,9 +72,11 @@ public class MainPanelUIScript : MonoBehaviour
 
         controlHeaderPanel.SetActive(true);
         savedPositionsHeaderPanel.SetActive(false);
+
+        PanelManager.Instance.RegisterPanel(this);
     }
 
-    public void HideControlPanel()
+    public void HidePanel2()
     {
         if (controlPanel != null)
         {
@@ -81,5 +97,13 @@ public class MainPanelUIScript : MonoBehaviour
 
         controlHeaderPanel.SetActive(false);
         savedPositionsHeaderPanel.SetActive(true);
+
+        ShowSavedPositionsPanel();
+        listManager.PopulateList();
+    }
+    
+    public bool IsPanelActive2()
+    {
+        return controlPanel.activeSelf;
     }
 }

@@ -29,7 +29,7 @@ public class SliderGroup
     [HideInInspector] public int currentDirectionIndex;
 }
 
-public class SliderValueConfig : MonoBehaviour
+public class SliderValueConfig : MonoBehaviour, IHideablePanel
 {
     public GameObject sliderConfigPanel;
 
@@ -147,7 +147,7 @@ public class SliderValueConfig : MonoBehaviour
         robotArmSelection?.SetSendContinuouslyMode(sendContinuously, sendStep);
         sliderTextUpdater.RefreshAllFromPrefs();
     }
-    
+
     public void ShowSliderConfigPanel()
     {
         sliderConfigPanel.SetActive(true);
@@ -172,12 +172,18 @@ public class SliderValueConfig : MonoBehaviour
             if (sliderGroups[i].settingsPanel != null)
                 sliderGroups[i].settingsPanel.SetActive(false); // Always start collapsed
         }
+
+        PanelManager.Instance.RegisterPanel(this);
     }
 
-    public void HideSliderConfigPanel()
+    public void HidePanel()
     {
         sliderConfigPanel.SetActive(false);
         sliderTextUpdater.RefreshAllFromPrefs();
+    }
+    public bool IsPanelActive()
+    {
+        return sliderConfigPanel.activeSelf;
     }
 
     void ToggleGroup(SliderGroup group)

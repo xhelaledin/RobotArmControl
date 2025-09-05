@@ -5,7 +5,7 @@ using UnityEngine.UI;
 using System.Collections.Generic;
 using System.Collections;
 
-public class BluetoothCommandConstructor : MonoBehaviour
+public class BluetoothCommandConstructor : MonoBehaviour, IHideablePanel
 {
     [Header("UI Panels")]
     public GameObject commandConstructPanel;
@@ -445,10 +445,12 @@ public class BluetoothCommandConstructor : MonoBehaviour
         // Update save command display when panel is shown
         if (saveCommandDisplayText != null)
             saveCommandDisplayText.text = saveCommand + commandDelimiter + BuildSaveExample();
+
+        PanelManager.Instance.RegisterPanel(this);
     }
 
 
-    public void HideCommandConstructPanel() => commandConstructPanel.SetActive(false);
+    public void HidePanel() => commandConstructPanel.SetActive(false);
 
     // ------------------------------
     // Keyboard / Scroll handling
@@ -517,6 +519,10 @@ public class BluetoothCommandConstructor : MonoBehaviour
         keyboardCoroutine = null;
     }
 
+    public bool IsPanelActive()
+    {
+        return commandConstructPanel.activeSelf;
+    }
 
     // Find the nearest child RectTransform of scrollRect.content that contains the input.
     private RectTransform FindEntryContainerForInput(TMP_InputField input)

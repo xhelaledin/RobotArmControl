@@ -34,12 +34,36 @@ public class SliderTextUpdater : MonoBehaviour
     public TextMeshProUGUI s5max;
     public TextMeshProUGUI s5currentvalue;
 
+    [Header("Slider 1 Start")]
+    public Slider sliderstart1;
+    public TextMeshProUGUI s1startcurrentvalue;
+
+    [Header("Slider 2 Start")]
+    public Slider sliderstart2;
+    public TextMeshProUGUI s2startcurrentvalue;
+
+    [Header("Slider 3 Start")]
+    public Slider sliderstart3;
+    public TextMeshProUGUI s3startcurrentvalue;
+
+    [Header("Slider 4 Start")]
+    public Slider sliderstart4;
+    public TextMeshProUGUI s4startcurrentvalue;
+
+    [Header("Slider 5 Start")]
+    public Slider sliderstart5;
+    public TextMeshProUGUI s5startcurrentvalue;
+
     // Internals for iteration
     private Slider[] _sliders;
     private TextMeshProUGUI[] _minTexts;
     private TextMeshProUGUI[] _maxTexts;
     private TextMeshProUGUI[] _currentTexts;
     private bool[] _flipped; // Tracks FlipDirection for each slider
+
+    // Start sliders arrays (only current values matter)
+    private Slider[] _startSliders;
+    private TextMeshProUGUI[] _startCurrentTexts;
 
     [Header("Other")]
     public RobotArmSelection robotArmSelection;
@@ -52,7 +76,10 @@ public class SliderTextUpdater : MonoBehaviour
         _currentTexts = new[] { s1currentvalue, s2currentvalue, s3currentvalue, s4currentvalue, s5currentvalue };
         _flipped = new bool[5];
 
-        // Wire value-changed listeners
+        _startSliders = new[] { sliderstart1, sliderstart2, sliderstart3, sliderstart4, sliderstart5 };
+        _startCurrentTexts = new[] { s1startcurrentvalue, s2startcurrentvalue, s3startcurrentvalue, s4startcurrentvalue, s5startcurrentvalue };
+
+        // Wire value-changed listeners (for main sliders)
         for (int i = 0; i < _sliders.Length; i++)
         {
             int idx = i; // capture
@@ -62,8 +89,19 @@ public class SliderTextUpdater : MonoBehaviour
             }
         }
 
+        // Wire value-changed listeners (for start sliders → ONLY update their current text)
+        for (int i = 0; i < _startSliders.Length; i++)
+        {
+            int idx = i;
+            if (_startSliders[idx] != null)
+            {
+                _startSliders[idx].onValueChanged.AddListener(_ => UpdateStartCurrentValueText(idx));
+            }
+        }
+
         // Initial load from PlayerPrefs
         RefreshAllFromPrefs();
+        LoadStartValuesFromPrefs(); // <-- load start sliders from PlayerPrefs
     }
 
     private void OnDestroy()
@@ -72,9 +110,13 @@ public class SliderTextUpdater : MonoBehaviour
         for (int i = 0; i < _sliders.Length; i++)
         {
             if (_sliders[i] != null)
-            {
                 _sliders[i].onValueChanged.RemoveAllListeners();
-            }
+        }
+
+        for (int i = 0; i < _startSliders.Length; i++)
+        {
+            if (_startSliders[i] != null)
+                _startSliders[i].onValueChanged.RemoveAllListeners();
         }
     }
 
@@ -96,12 +138,72 @@ public class SliderTextUpdater : MonoBehaviour
         }
     }
 
-    private void ApplyPrefsToSlider(int index)
+    // --- START SLIDER METHODS ---
+
+    /// <summary>
+    /// Refresh start sliders’ texts from their current slider values (user-driven).
+    /// </summary>
+    public void RefreshStartCurrentTextsOnly()
+    {
+        for (int i = 0; i < 5; i++)
+        {
+            UpdateStartCurrentValueText(i);
+        }
+    }
+
+    /// <summary>
+    /// Force start slider texts to reload from PlayerPrefs, based on selected model.
+    /// </summary>
+    public void LoadStartValuesFromPrefs()
+    {
+        string modelKey = GetModelKeyPrefix();
+        int selectedModelIndex = PlayerPrefs.GetInt("SelectedModelIndex", 0);
+
+        // Decide how many sliders are valid for this model
+        int validSliders = 0;
+        switch (selectedModelIndex)
+        {
+            case 0: validSliders = 3; break; // model4 → sliders 1-3
+            case 1: validSliders = 4; break; // model5 → sliders 1-4
+            case 2: validSliders = 4; break; // model5B → sliders 1-4
+            case 3: validSliders = 5; break; // model6 → sliders 1-5
+            default: validSliders = 3; break;
+        }
+
+        for (int i = 0; i < validSliders; i++)
+        {
+            var slider = _startSliders[i];
+            var curText = _startCurrentTexts[i];
+            if (slider == null || curText == null) continue;
+
+            string key = $"{modelKey}startRotationpart{i + 1}";
+            float prefValue = PlayerPrefs.GetFloat(key, slider.value);
+
+            // Update ONLY the text to match pref
+            curText.text = Mathf.RoundToInt(prefValue).ToString();
+        }
+    }
+
+    private string GetModelKeyPrefix()
+    {
+        int selectedModelIndex = PlayerPrefs.GetInt("SelectedModelIndex", 0); // default to model4
+        switch (selectedModelIndex)
+        {
+            case 0: return "model4";
+            case 1: return "model5";
+            case 2: return "model5B";
+            case 3: return "model6";
+            default: return "model4";
+        }
+    }
+
+    // --- MAIN SLIDER METHODS ---
+
+    public void ApplyPrefsToSlider(int index)
     {
         var slider = _sliders[index];
         var minText = _minTexts[index];
         var maxText = _maxTexts[index];
-        var curText = _currentTexts[index];
 
         if (slider == null)
         {
@@ -153,5 +255,15 @@ public class SliderTextUpdater : MonoBehaviour
         // If flipped, display the mirrored value so the number matches the swapped endpoints
         int display = _flipped[index] ? (low + high - raw) : raw;
         curText.text = display.ToString();
+    }
+
+    public void UpdateStartCurrentValueText(int index)
+    {
+        var slider = _startSliders[index];
+        var curText = _startCurrentTexts[index];
+        if (slider == null || curText == null) return;
+
+        int raw = Mathf.RoundToInt(slider.value);
+        curText.text = raw.ToString();
     }
 }

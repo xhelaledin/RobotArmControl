@@ -7,6 +7,7 @@ using TMPro;
 public class ListManager : MonoBehaviour
 {
     public GameObject saveItemPrefab;
+    public GameObject noSavesPrefab;   // 👈 Prefab to show when list is empty
     public Transform content;
 
     public RobotArmInputHandler4Parts armInputHandler4Parts;
@@ -29,6 +30,8 @@ public class ListManager : MonoBehaviour
     private Button currentlySelectedButton = null;
     private string currentlySelectedType = "";
 
+    private GameObject noSavesInstance = null; // 👈 Track spawned "no saves" object
+
     void Start()
     {
         selectedModelIndex = PlayerPrefs.GetInt("SelectedModelIndex", 0);
@@ -39,14 +42,36 @@ public class ListManager : MonoBehaviour
     {
         selectedModelIndex = PlayerPrefs.GetInt("SelectedModelIndex", 0);
 
+        // Destroy everything except the "no saves" instance
         foreach (Transform child in content)
         {
-            Destroy(child.gameObject);
+            if (noSavesInstance == null || child.gameObject != noSavesInstance)
+                Destroy(child.gameObject);
         }
 
-        foreach (string name in GetAllSaveNames())
+        HashSet<string> saves = GetAllSaveNames();
+
+        if (saves.Count == 0)
         {
-            CreateSaveItem(name);
+            // Show "no saves" prefab
+            if (noSavesPrefab != null && noSavesInstance == null)
+            {
+                noSavesInstance = Instantiate(noSavesPrefab, content);
+            }
+        }
+        else
+        {
+            // Hide/remove "no saves" prefab if exists
+            if (noSavesInstance != null)
+            {
+                Destroy(noSavesInstance);
+                noSavesInstance = null;
+            }
+
+            foreach (string name in saves)
+            {
+                CreateSaveItem(name);
+            }
         }
 
         // Reset selection when list is refreshed
@@ -87,7 +112,6 @@ public class ListManager : MonoBehaviour
             }
             else
             {
-                // fallback if no date
                 saveItemManager.SetData(saveName, new int[0], "");
             }
         }
@@ -121,13 +145,15 @@ public class ListManager : MonoBehaviour
 
         Destroy(saveItem);
 
-        // If the deleted item was the selected one, clear selection
         if (currentlySelectedItem != null && currentlySelectedItem.gameObject == saveItem)
         {
             currentlySelectedItem = null;
             currentlySelectedButton = null;
             currentlySelectedType = "";
         }
+
+        // Refresh list (to possibly show "no saves" prefab)
+        PopulateList();
     }
 
     private void OnRunButtonClicked(string saveName, Button runBtn)
@@ -157,7 +183,6 @@ public class ListManager : MonoBehaviour
 
     private void UpdateGlobalButtonVisuals(SaveItemManager itemManager, Button clickedButton, string buttonType)
     {
-        // Reset previous selected button sprite if any
         if (currentlySelectedButton != null && currentlySelectedItem != null)
         {
             if (currentlySelectedType == "run")
@@ -166,13 +191,11 @@ public class ListManager : MonoBehaviour
                 currentlySelectedItem.SetViewButtonNormal();
         }
 
-        // Set newly clicked button sprite
         if (buttonType == "run")
             itemManager.SetRunButtonSelected();
         else if (buttonType == "view")
             itemManager.SetViewButtonSelected();
 
-        // Update tracking
         currentlySelectedButton = clickedButton;
         currentlySelectedType = buttonType;
         currentlySelectedItem = itemManager;

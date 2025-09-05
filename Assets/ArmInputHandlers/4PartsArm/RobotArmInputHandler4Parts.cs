@@ -11,6 +11,12 @@ public class RobotArmInputHandler4Parts : MonoBehaviour
     private float part2StartRotation;
     private float part3StartRotation;
 
+
+    void Start()
+    {
+        LoadStartRotationsFromPrefs();
+    }
+
     public void LoadStartRotationsFromPrefs()
     {
         part1StartRotation = PlayerPrefs.GetFloat("model4startRotationpart1", 0f);
@@ -43,14 +49,14 @@ public class RobotArmInputHandler4Parts : MonoBehaviour
     {
         part2StartRotation = zRotation;
         var adjusted = directions[1] ? zRotation : -zRotation;
-        part2.localEulerAngles = new Vector3(270f, 0.185f, 170 + adjusted);
+        part2.localEulerAngles = new Vector3(270f, 0.185f, 80 + adjusted);
     }
 
     public void setPart3StartRotation(float zRotation)
     {
         part3StartRotation = zRotation;
         var adjusted = directions[2] ? zRotation : -zRotation;
-        part3.localEulerAngles = new Vector3(270f, 129.6f, 220 + adjusted);
+        part3.localEulerAngles = new Vector3(270f, 129.6f, 20 + adjusted);
     }
 
     public void SetDirection(int partIndex, bool isPositive)
@@ -63,6 +69,7 @@ public class RobotArmInputHandler4Parts : MonoBehaviour
     {
         var adj = directions[0] ? rotation : -rotation;
         var angle = adj + part1StartRotation;
+        Debug.Log(angle + " angle " + adj + " adj " + part1StartRotation + " start ");
         part1.localEulerAngles = new Vector3(180f, 0f, 90 + angle);
     }
 
@@ -78,6 +85,24 @@ public class RobotArmInputHandler4Parts : MonoBehaviour
         var adj = directions[2] ? rotation : -rotation;
         var angle = adj + part3StartRotation;
         part3.localEulerAngles = new Vector3(270f, 129.6f, 20 + angle);
+    }
+
+    public void setPart1RotationVisual(float rotation)
+    {
+        var adj = directions[0] ? rotation : -rotation;
+        part1.localEulerAngles = new Vector3(180f, 0f, 90 + adj);
+    }
+
+    public void setPart2RotationVisual(float rotation)
+    {
+        var adj = directions[1] ? rotation : -rotation;
+        part2.localEulerAngles = new Vector3(270f, 0.185f, 80 + adj);
+    }
+
+    public void setPart3RotationVisual(float rotation)
+    {
+        var adj = directions[2] ? rotation : -rotation;
+        part3.localEulerAngles = new Vector3(270f, 129.6f, 20 + adj);
     }
 
     public void OpenClaw()

@@ -5,7 +5,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using Lean.Gui;
 
-public class CategorySelectionManager : MonoBehaviour
+public class CategorySelectionManager : MonoBehaviour, IHideablePanel
 {
     [Header("Sprites for Toggle Positions")]
     public Sprite spriteSolo;
@@ -203,6 +203,8 @@ public class CategorySelectionManager : MonoBehaviour
         isRestoreMode = false;
         ResetAllToggles();
         gameObject.SetActive(true);
+
+        PanelManager.Instance.RegisterPanel(this);
     }
 
     public void ShowRestorePanel(string filePath, List<PrefCategory> availableCategories)
@@ -244,6 +246,11 @@ public class CategorySelectionManager : MonoBehaviour
     public void HidePanel()
     {
         gameObject.SetActive(false);
+    }
+
+    public bool IsPanelActive()
+    {
+        return gameObject.activeSelf;
     }
 
     private void OnConfirm()

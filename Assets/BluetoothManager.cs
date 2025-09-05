@@ -8,7 +8,7 @@ using TMPro;
 using UnityEngine.EventSystems;
 using System.Collections;
 
-public class BluetoothManager : MonoBehaviour
+public class BluetoothManager : MonoBehaviour, IHideablePanel
 {
     [Header("UI Elements")]
 
@@ -131,6 +131,8 @@ public class BluetoothManager : MonoBehaviour
 
         lastConnectedMAC = PlayerPrefs.GetString("LastConnectedMAC", "");
         lastConnectedName = PlayerPrefs.GetString("LastConnectedName", "");
+
+        PanelManager.Instance.RegisterPanel(this);
     }
 
     public void ShowBluetoothPanelFromMainPage()
@@ -143,9 +145,11 @@ public class BluetoothManager : MonoBehaviour
 
         lastConnectedMAC = PlayerPrefs.GetString("LastConnectedMAC", "");
         lastConnectedName = PlayerPrefs.GetString("LastConnectedName", "");
+
+        PanelManager.Instance.RegisterPanel(this);
     }
 
-    public void HideBluetoothPanel()
+    public void HidePanel()
     {
         if (!mainPageButtonFlag)
         {
@@ -156,6 +160,11 @@ public class BluetoothManager : MonoBehaviour
             bluetoothMainPanel.SetActive(false);
         }
         StopScanUI();
+    }
+
+    public bool IsPanelActive()
+    {
+        return bluetoothMainPanel.activeSelf;
     }
 
     public void UpdateButtonSprite(bool state)

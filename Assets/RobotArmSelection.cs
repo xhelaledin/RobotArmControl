@@ -443,11 +443,11 @@ public class RobotArmSelection : MonoBehaviour
     public void MoveModelByStartValues()
     {
         // Load floats, not ints, for slider start positions
-        float slider1Start = PlayerPrefs.GetFloat("Slider1_Start", 90f);
-        float slider2Start = PlayerPrefs.GetFloat("Slider2_Start", 90f);
-        float slider3Start = PlayerPrefs.GetFloat("Slider3_Start", 90f);
-        float slider4Start = PlayerPrefs.GetFloat("Slider4_Start", 90f);
-        float slider5Start = PlayerPrefs.GetFloat("Slider5_Start", 90f);
+        int slider1Start = PlayerPrefs.GetInt("Slider1_Start", 90);
+        int slider2Start = PlayerPrefs.GetInt("Slider2_Start", 90);
+        int slider3Start = PlayerPrefs.GetInt("Slider3_Start", 90);
+        int slider4Start = PlayerPrefs.GetInt("Slider4_Start", 90);
+        int slider5Start = PlayerPrefs.GetInt("Slider5_Start", 90);
 
         // Set slider values directly, this moves the slider correctly
         slider1.value = slider1Start;

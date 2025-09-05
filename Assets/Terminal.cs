@@ -6,7 +6,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine.EventSystems;
 
-public class Terminal : MonoBehaviour, IDeselectHandler
+public class Terminal : MonoBehaviour, IDeselectHandler, IHideablePanel
 {
     [Header("UI References")]
     public GameObject terminalPanel;
@@ -69,13 +69,20 @@ public class Terminal : MonoBehaviour, IDeselectHandler
         inputField.interactable = true;
         inputField.ActivateInputField();
         StartCoroutine(ScrollToBottomNextFrame());
+
+        PanelManager.Instance.RegisterPanel(this);
     }
 
-    public void HideTerminalPanel()
+    public void HidePanel()
     {
         terminalPanel?.SetActive(false);
         allowDefocus = true;
         inputField.DeactivateInputField();
+    }
+
+    public bool IsPanelActive()
+    {
+        return terminalPanel.activeSelf;
     }
 
     public void SendMessageFromInput()
