@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
@@ -6,27 +7,22 @@ using UnityEngine.UI;
 using UnityEngine.Android;
 using TMPro;
 using UnityEngine.EventSystems;
-using System.Collections;
 
 public class BluetoothManager : MonoBehaviour, IHideablePanel
 {
     [Header("UI Elements")]
-
     public TextMeshProUGUI connectionStatus;
-
-    public GameObject scanningAnimation;
     public GameObject settingsPanel;
     public GameObject bluetoothMainPanel;
+    public GameObject bluetoothHandlePanel;
 
     [Header("Bluetooth Status Button")]
     public Button mainPageBluetoothButton;
+    public Button listPanelBluetoothButton;
     public Sprite disconnectedSprite;
     public Sprite connectedSprite;
 
-
     [Header("Unified List UI")]
-    public Transform pairedContentContainer;
-    public Transform scannedContentContainer;
     public GameObject deviceEntryPrefab;
     public Sprite singleBackground;
     public Sprite firstBackground;
@@ -34,40 +30,50 @@ public class BluetoothManager : MonoBehaviour, IHideablePanel
     public Sprite lastBackground;
     public GameObject noDeviceEntryObject;
 
+    // Original panel containers
+    public Transform pairedContentContainer;
+    public Transform scannedContentContainer;
+
+    // Optional new panel containers
+    public Transform extraPairedContentContainer;
+    public Transform extraScannedContentContainer;
+
     [Header("Scan UI Controls")]
     public Button scanToggleButton;
     public TextMeshProUGUI scanToggleButtonText;
+    public GameObject scanningAnimation;
+
+    public Button scanHandleToggleButton;
+    public TextMeshProUGUI scanHandleToggleButtonText;
+    public GameObject scanningHandleAnimation;
+    
 
     private bool isScanning = false;
     private bool isConnected = false;
     private bool anyDeviceFound = false;
 
-    // Store scanned devices in list of entries "Name\nMAC"
     private List<string> scannedDeviceList = new List<string>();
-
-    // Android Bluetooth objects
     private AndroidJavaObject bluetoothAdapter;
     private AndroidJavaObject bluetoothSocket;
 
     private static AndroidJavaClass unity3dbluetoothplugin;
     private static AndroidJavaObject BluetoothConnector;
-
     private readonly string SPP_UUID = "00001101-0000-1000-8000-00805f9b34fb";
 
     [Header("External References")]
     public EncryptionManager encryptionManager;
-    public Terminal terminal; // replaces old logger
+    public Terminal terminal;
 
     private string lastConnectedMAC = "";
     private string lastConnectedName = "";
-
     private string lastDisconnectedMAC = "";
-
 
     private List<string> lastPairedList = new List<string>();
     private List<string> lastScannedList = new List<string>();
 
     private bool mainPageButtonFlag;
+
+    private bool bluetoothHandlePanelFlag;
 
     private void Awake()
     {
@@ -88,7 +94,7 @@ public class BluetoothManager : MonoBehaviour, IHideablePanel
     {
         if (Application.platform != RuntimePlatform.Android) return;
 
-        // Request all necessary permissions
+        // Request permissions
         if (!Permission.HasUserAuthorizedPermission(Permission.CoarseLocation) ||
             !Permission.HasUserAuthorizedPermission(Permission.FineLocation) ||
             !Permission.HasUserAuthorizedPermission("android.permission.BLUETOOTH") ||
@@ -126,12 +132,8 @@ public class BluetoothManager : MonoBehaviour, IHideablePanel
     {
         bluetoothMainPanel.SetActive(true);
         mainPageButtonFlag = false;
-
-        StartScanUI();
-
-        lastConnectedMAC = PlayerPrefs.GetString("LastConnectedMAC", "");
-        lastConnectedName = PlayerPrefs.GetString("LastConnectedName", "");
-
+        StartScanUI(pairedContentContainer, scannedContentContainer);
+        LoadLastConnection();
         PanelManager.Instance.RegisterPanel(this);
     }
 
@@ -140,84 +142,112 @@ public class BluetoothManager : MonoBehaviour, IHideablePanel
         settingsPanel.SetActive(true);
         bluetoothMainPanel.SetActive(true);
         mainPageButtonFlag = true;
+        StartScanUI(pairedContentContainer, scannedContentContainer);
+        LoadLastConnection();
+        PanelManager.Instance.RegisterPanel(this);
+    }
 
-        StartScanUI();
+    public void ShowBluetoothHandlePanel()
+    {
+        bluetoothHandlePanel.SetActive(true);
+        bluetoothHandlePanelFlag = true;
+        // StartScanUI(pairedContentContainer, scannedContentContainer);
+        LoadLastConnection();
+        PanelManager.Instance.RegisterPanel(this);
+    }
 
+
+    private void LoadLastConnection()
+    {
         lastConnectedMAC = PlayerPrefs.GetString("LastConnectedMAC", "");
         lastConnectedName = PlayerPrefs.GetString("LastConnectedName", "");
-
-        PanelManager.Instance.RegisterPanel(this);
     }
 
     public void HidePanel()
     {
-        if (!mainPageButtonFlag)
+        if (bluetoothHandlePanelFlag)
         {
-            bluetoothMainPanel.SetActive(false);
+            bluetoothHandlePanel.SetActive(false);
+            bluetoothHandlePanelFlag = false;
         }
-        else {
+        else if (!mainPageButtonFlag)
+            bluetoothMainPanel.SetActive(false);
+        else
+        {
             settingsPanel.SetActive(false);
             bluetoothMainPanel.SetActive(false);
         }
         StopScanUI();
     }
 
+    // public bool IsPanelActive() => bluetoothMainPanel.activeSelf;
+
     public bool IsPanelActive()
-    {
-        return bluetoothMainPanel.activeSelf;
-    }
+{
+        return bluetoothMainPanel.activeSelf ||
+               bluetoothHandlePanel.activeSelf;
+}
 
     public void UpdateButtonSprite(bool state)
     {
         mainPageBluetoothButton.image.sprite = state ? connectedSprite : disconnectedSprite;
+        listPanelBluetoothButton.image.sprite = state ? connectedSprite : disconnectedSprite;
     }
 
     public void OnScanToggleButtonPressed()
     {
         if (isScanning) StopScanUI();
-        else StartScanUI();
+        else StartScanUI(pairedContentContainer, scannedContentContainer);
+
+        if (noDeviceEntryObject != null)
+            noDeviceEntryObject.SetActive(false);
+    }
+
+    private void StartScanUI(Transform pairedContainer, Transform scannedContainer)
+    {
+        if (isConnected) return;
+
+        anyDeviceFound = false;
+        scannedDeviceList.Clear();
 
         if (noDeviceEntryObject != null)
             noDeviceEntryObject.SetActive(false);
 
-    }
-
-    private void StartScanUI()
-    {
-        if (isConnected == true) return;
-
-        // Reset scan state
-        anyDeviceFound = false;
-
-        if (noDeviceEntryObject != null)
-            noDeviceEntryObject.SetActive(false); // hide the message at start
-
-        scannedDeviceList.Clear();
-        PopulateList(scannedDeviceList, scannedContentContainer, OnScannedDeviceSelected);
+        PopulateList(scannedDeviceList, scannedContainer, OnScannedDeviceSelected);
 
         StartScan();
         isScanning = true;
         scanToggleButtonText.text = "Stop";
+        scanHandleToggleButtonText.text = "Stop Scanning";
+
         if (scanningAnimation != null)
             scanningAnimation.SetActive(true);
-    }
 
+        if (scanningHandleAnimation != null)
+            scanningHandleAnimation.SetActive(true);
+    }
 
     private void StopScanUI()
     {
         StopScanDevices();
         isScanning = false;
         scanToggleButtonText.text = "Scan";
+        scanHandleToggleButtonText.text = "Start Scanning";
         if (scanningAnimation != null)
             scanningAnimation.SetActive(false);
+
+        if (scanningHandleAnimation != null)
+            scanningHandleAnimation.SetActive(false);
     }
 
     public void InitPairedSection()
     {
-        GetPairedDevices();
+        GetPairedDevices(pairedContentContainer);
+        if(extraPairedContentContainer != null)
+            GetPairedDevices(extraPairedContentContainer);
     }
 
-    public void GetPairedDevices()
+    public void GetPairedDevices(Transform container)
     {
         if (Application.platform != RuntimePlatform.Android) return;
 
@@ -240,36 +270,29 @@ public class BluetoothManager : MonoBehaviour, IHideablePanel
             }
         }
 
-        PopulateList(list, pairedContentContainer, OnDeviceSelected);
+        PopulateList(list, container, OnDeviceSelected);
     }
 
     public void StartScan()
     {
-        if (Application.platform != RuntimePlatform.Android) return;
+        if (Application.platform != RuntimePlatform.Android || isConnected) return;
 
-        if (isConnected == true)
-        {
-            return;
-        }
-        else
-        {
-            scannedDeviceList.Clear();
-            PopulateList(scannedDeviceList, scannedContentContainer, OnScannedDeviceSelected);
-            BluetoothConnector.CallStatic("StartScanDevices");
-        }
+        scannedDeviceList.Clear();
+        PopulateList(scannedDeviceList, scannedContentContainer, OnScannedDeviceSelected);
+        if(extraScannedContentContainer != null)
+            PopulateList(scannedDeviceList, extraScannedContentContainer, OnScannedDeviceSelected);
+
+        BluetoothConnector.CallStatic("StartScanDevices");
     }
 
     public void StopScanDevices()
     {
         if (Application.platform != RuntimePlatform.Android) return;
-
         BluetoothConnector.CallStatic("StopScanDevices");
     }
 
-    // Called by Java when a new device is found during scan
     public void NewDeviceFound(string data)
     {
-        Debug.Log("NewDeviceFound: " + data);
         if (string.IsNullOrEmpty(data)) return;
 
         var parts = data.Split('+');
@@ -285,61 +308,57 @@ public class BluetoothManager : MonoBehaviour, IHideablePanel
         anyDeviceFound = true;
 
         PopulateList(scannedDeviceList, scannedContentContainer, OnScannedDeviceSelected);
+        if(extraScannedContentContainer != null)
+            PopulateList(scannedDeviceList, extraScannedContentContainer, OnScannedDeviceSelected);
     }
-
 
     public void ScanStatus(string status)
     {
-        Debug.Log("ScanStatus: " + status);
-        //Toast("Scan Status: " + status);
-
         if (status == "stopped" || status == "completed")
         {
             isScanning = false;
             scanToggleButtonText.text = "Scan";
+            scanHandleToggleButtonText.text = "Start Scanning";
             if (scanningAnimation != null)
                 scanningAnimation.SetActive(false);
+            
+            if (scanningHandleAnimation != null)
+                scanningHandleAnimation.SetActive(false);
 
             PopulateList(scannedDeviceList, scannedContentContainer, OnScannedDeviceSelected);
+            if(extraScannedContentContainer != null)
+                PopulateList(scannedDeviceList, extraScannedContentContainer, OnScannedDeviceSelected);
 
             if (!anyDeviceFound && noDeviceEntryObject != null)
-            {
                 noDeviceEntryObject.SetActive(true);
-            }
         }
     }
 
     public void OnDeviceSelected(string address)
     {
-        var deviceEntry = FindDeviceEntryByMAC(address, pairedContentContainer);
+        var deviceEntry = FindDeviceEntryByMAC(address, pairedContentContainer) 
+                          ?? FindDeviceEntryByMAC(address, extraPairedContentContainer);
+
         if (deviceEntry != null)
             deviceEntry.SetConnectionStatus("Connecting...", Color.yellow);
 
-        if (isConnected && address == lastConnectedMAC)
-        {
-            StopConnection();
-        }
-        else
-        {
-            StartConnection(address);
-        }
+        if (isConnected && address == lastConnectedMAC) StopConnection();
+        else StartConnection(address);
     }
 
     public void OnScannedDeviceSelected(string address)
     {
-        var deviceEntry = FindDeviceEntryByMAC(address, scannedContentContainer);
+        var deviceEntry = FindDeviceEntryByMAC(address, scannedContentContainer) 
+                          ?? FindDeviceEntryByMAC(address, extraScannedContentContainer);
+
         if (deviceEntry != null)
             deviceEntry.SetConnectionStatus("Connecting...", Color.yellow);
 
-        if (isConnected && address == lastConnectedMAC)
-        {
-            StopConnection();
-        }
-        else
-        {
-            StartConnection(address);
-        }
+        if (isConnected && address == lastConnectedMAC) StopConnection();
+        else StartConnection(address);
     }
+
+    // ------------------ Connection Methods ------------------ //
 
     public void StartConnection(string deviceAddress)
     {
@@ -358,7 +377,6 @@ public class BluetoothManager : MonoBehaviour, IHideablePanel
 
         try
         {
-            // Get the remote device
             AndroidJavaObject device = bluetoothAdapter.Call<AndroidJavaObject>("getRemoteDevice", deviceAddress);
             if (device == null)
             {
@@ -366,16 +384,15 @@ public class BluetoothManager : MonoBehaviour, IHideablePanel
                 return;
             }
 
-            // Get the SPP UUID
             AndroidJavaClass uuidClass = new AndroidJavaClass("java.util.UUID");
             AndroidJavaObject sppUUID = uuidClass.CallStatic<AndroidJavaObject>("fromString", SPP_UUID);
 
-            // Create RFCOMM socket and connect
             bluetoothSocket = device.Call<AndroidJavaObject>("createRfcommSocketToServiceRecord", sppUUID);
             bluetoothSocket.Call("connect");
 
             isConnected = true;
             StopScanUI();
+
             lastConnectedMAC = deviceAddress;
             lastConnectedName = FindDeviceNameByMAC(deviceAddress);
 
@@ -383,14 +400,10 @@ public class BluetoothManager : MonoBehaviour, IHideablePanel
             PlayerPrefs.SetString("LastConnectedName", lastConnectedName);
             PlayerPrefs.Save();
 
-            // Toast("Connected to " + lastConnectedName);
             Toast("Connected to " + FindDeviceNameByMAC(lastConnectedMAC));
-
             UpdateButtonSprite(true);
-
             UpdateConnectionStatus("Status: Connected to " + lastConnectedName);
 
-            // Update UI for paired devices list
             InitPairedSection();
         }
         catch (Exception ex)
@@ -402,46 +415,18 @@ public class BluetoothManager : MonoBehaviour, IHideablePanel
         }
     }
 
-    // Called by Java when connection status changes (or you can trigger it yourself)
-    public void ConnectionStatus(string status)
-    {
-        Debug.Log("ConnectionStatus: " + status);
-        UpdateConnectionStatus("Status: " + status);
-
-        if (status == "connected")
-        {
-            isConnected = true;
-            //HideBluetoothPanel();
-
-            // Toast($"Connected to: {lastConnectedName}");
-            Toast("Connected to " + FindDeviceNameByMAC(lastConnectedMAC));
-
-            PlayerPrefs.SetString("LastConnectedMAC", lastConnectedMAC);
-            PlayerPrefs.SetString("LastConnectedName", lastConnectedName);
-            PlayerPrefs.Save();
-
-            InitPairedSection(); // update UI
-        }
-        else if (status == "disconnected" || status == "unable to connect")
-        {
-            isConnected = false;
-        }
-    }
-
-
     public void StopConnection()
     {
         if (Application.platform != RuntimePlatform.Android) return;
 
         string disconnectedDeviceName = lastConnectedName;
-        lastDisconnectedMAC = lastConnectedMAC;  // Remember disconnected MAC for UI
+        lastDisconnectedMAC = lastConnectedMAC;
         lastConnectedMAC = "";
         lastConnectedName = "";
         isConnected = false;
 
         UpdateConnectionStatus("Status: Disconnected");
-        // Toast($"Disconnected from {disconnectedDeviceName}");
-        Toast("Disconnected from " + FindDeviceNameByMAC(disconnectedDeviceName));
+        Toast("Disconnected from " + disconnectedDeviceName);
 
         try
         {
@@ -468,69 +453,45 @@ public class BluetoothManager : MonoBehaviour, IHideablePanel
 
         UpdateButtonSprite(false);
 
-        // Refresh UI lists to update connection labels
+        // Refresh both UI lists
         PopulateList(lastPairedList, pairedContentContainer, OnDeviceSelected);
-        PopulateList(lastScannedList, scannedContentContainer, OnDeviceSelected);
+        PopulateList(lastScannedList, scannedContentContainer, OnScannedDeviceSelected);
+
+        if(extraPairedContentContainer != null)
+            PopulateList(lastPairedList, extraPairedContentContainer, OnDeviceSelected);
+        if(extraScannedContentContainer != null)
+            PopulateList(lastScannedList, extraScannedContentContainer, OnScannedDeviceSelected);
     }
 
-    private void ClearConnectedLabel(Transform container, string macAddress)
-    {
-        foreach (Transform child in container)
-        {
-            var comp = child.GetComponent<DeviceEntry>();
-            if (comp != null && comp.MACAddress == macAddress)
-            {
-                comp.SetConnectionStatus("");
-            }
-        }
-    }
+    // ------------------ Data Methods ------------------ //
 
-
-    // Called by Java when data is received
     public void ReadData(string data)
     {
         Debug.Log("BT Stream: " + data);
-        if (terminal != null)
-            terminal.LogReceived(data);
-        else
-            Debug.LogWarning("Terminal reference missing, cannot log received data.");
+        terminal?.LogReceived(data);
     }
 
-    /// <summary>
-    /// Writes encrypted data over the socket's output stream.
-    /// Uses old connection logic from BluetoothManagerOld.
-    /// </summary>
     public void WriteData(string plainText)
     {
-        if (Application.platform != RuntimePlatform.Android || !isConnected)
+        if (Application.platform != RuntimePlatform.Android || !isConnected || string.IsNullOrWhiteSpace(plainText))
             return;
-
-        if (string.IsNullOrWhiteSpace(plainText))
-        {
-            Toast("No data to send");
-            return;
-        }
 
         try
         {
             if (bluetoothSocket == null)
             {
-                Debug.LogError("Bluetooth socket is null.");
                 Toast("Bluetooth socket is not connected.");
                 return;
             }
 
             if (encryptionManager == null)
             {
-                Debug.LogError("Encryption manager is null.");
                 Toast("Encryption system not ready.");
                 return;
             }
 
             string encryptedHex = encryptionManager.EncryptString(plainText);
             byte[] dataBytes = Encoding.UTF8.GetBytes(encryptedHex);
-
-            // Append newline
             byte[] finalBytes = new byte[dataBytes.Length + 1];
             Buffer.BlockCopy(dataBytes, 0, finalBytes, 0, dataBytes.Length);
             finalBytes[finalBytes.Length - 1] = (byte)'\n';
@@ -540,11 +501,7 @@ public class BluetoothManager : MonoBehaviour, IHideablePanel
             outputStream.Call("flush");
 
             Toast($"Encrypted + Sent: {plainText} as {encryptedHex}");
-
-            if (terminal != null)
-                terminal.LogSent(plainText);
-            else
-                Debug.LogWarning("Terminal reference missing, cannot log sent data.");
+            terminal?.LogSent(plainText);
         }
         catch (Exception ex)
         {
@@ -554,16 +511,7 @@ public class BluetoothManager : MonoBehaviour, IHideablePanel
         }
     }
 
-    // public void ResetPosition()
-    // {
-    //     WriteData("SERVOS:0,90,90,105");
-    // }
-
-    public void SaveDeviceMAC(string mac)
-    {
-        PlayerPrefs.SetString("LastConnectedMAC", mac);
-        PlayerPrefs.Save();
-    }
+    // ------------------ UI Helpers ------------------ //
 
     public void Toast(string message)
     {
@@ -602,9 +550,11 @@ public class BluetoothManager : MonoBehaviour, IHideablePanel
 
     private void PopulateList(List<string> devices, Transform container, Action<string> onDeviceSelected)
     {
-        if (container == pairedContentContainer)
+        if (container == null) return;
+
+        if (container == pairedContentContainer || container == extraPairedContentContainer)
             lastPairedList = new List<string>(devices);
-        else if (container == scannedContentContainer)
+        else if (container == scannedContentContainer || container == extraScannedContentContainer)
             lastScannedList = new List<string>(devices);
 
         foreach (Transform child in container)
@@ -631,41 +581,31 @@ public class BluetoothManager : MonoBehaviour, IHideablePanel
             bool isSelected = macAddress == lastConnectedMAC;
             comp.Setup(deviceName, macAddress, bg, () => onDeviceSelected(macAddress), isSelected);
 
-            if (isSelected)
-            {
-                comp.SetConnectionStatus("Connected", Color.green);
-            }
+            if (isSelected) comp.SetConnectionStatus("Connected", Color.green);
             else if (macAddress == lastDisconnectedMAC)
             {
                 comp.SetConnectionStatus("Disconnected", Color.red);
-                // Clear lastDisconnectedMAC after showing once
                 lastDisconnectedMAC = "";
             }
-            else
-            {
-                comp.SetConnectionStatus("");
-            }
+            else comp.SetConnectionStatus("");
         }
 
         LayoutRebuilder.ForceRebuildLayoutImmediate((RectTransform)container);
         StartCoroutine(ResizeParentHeight(container));
     }
 
-
-    // Optional: auto-resize wrapper height (if using a max height cap)
     private IEnumerator ResizeParentHeight(Transform container)
     {
         yield return null;
-
         RectTransform contentRT = (RectTransform)container;
         RectTransform parentRT = (RectTransform)container.parent;
-
         float preferredHeight = LayoutUtility.GetPreferredHeight(contentRT);
         parentRT.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, preferredHeight);
     }
-    
+
     private DeviceEntry FindDeviceEntryByMAC(string mac, Transform container)
     {
+        if (container == null) return null;
         foreach (Transform child in container)
         {
             var entry = child.GetComponent<DeviceEntry>();
@@ -674,5 +614,4 @@ public class BluetoothManager : MonoBehaviour, IHideablePanel
         }
         return null;
     }
-
 }
