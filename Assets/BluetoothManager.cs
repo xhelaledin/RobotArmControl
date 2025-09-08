@@ -272,10 +272,10 @@ public class BluetoothManager : MonoBehaviour, IHideablePanel
     // public bool IsPanelActive() => bluetoothMainPanel.activeSelf;
 
     public bool IsPanelActive()
-{
-        return bluetoothMainPanel.activeSelf ||
-               bluetoothHandlePanel.activeSelf;
-}
+    {
+            return bluetoothMainPanel.activeSelf ||
+                bluetoothHandlePanel.activeSelf;
+    }
 
     public void UpdateButtonSprite(bool state)
     {

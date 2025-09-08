@@ -34,13 +34,15 @@ public class CodeViewer : MonoBehaviour, IHideablePanel, IHideablePanel2, IHidea
 
     [Header("Styling (hex colors)")]
     public string keywordColor = "#569CD6";  // blue
-    public string typeColor    = "#4EC9B0";  // teal/number
-    public string stringColor  = "#D69D85";  // string color
+    public string typeColor = "#4EC9B0";  // teal/number
+    public string stringColor = "#D69D85";  // string color
     public string commentColor = "#6A9955";  // green
     public string preprocColor = "#C586C0";  // purple
 
     [Header("UI tuning")]
     public int fontSize = 18;
+
+    public GoToLink goToLink;
 
     void Start()
     {
@@ -138,7 +140,7 @@ public class CodeViewer : MonoBehaviour, IHideablePanel, IHideablePanel2, IHidea
             text.ForceMeshUpdate();
             Vector2 pref = text.GetPreferredValues(text.text);
 
-            float targetWidth  = Mathf.Ceil(pref.x) + group.padding;
+            float targetWidth = Mathf.Ceil(pref.x) + group.padding;
             float targetHeight = Mathf.Ceil(pref.y) + group.padding;
 
             SetWidth(content, targetWidth);
@@ -293,20 +295,29 @@ public class CodeViewer : MonoBehaviour, IHideablePanel, IHideablePanel2, IHidea
         return code;
     }
 
-        // --- Open Website Buttons ---
+    // --- Open Website Buttons ---
     public void OpenWebsite1()
     {
-        Application.OpenURL("https://github.com/xhelaledin/RobotArmControl");
+        string link = "https://github.com/xhelaledin/RobotArmControl";
+        string descriptionText = "This link is taking you to the github page of this application";
+        goToLink.ShowGoToLinkPanel(link, descriptionText);
+        // Application.OpenURL("https://github.com/xhelaledin/RobotArmControl");
     }
 
     public void OpenWebsite2()
     {
-        Application.OpenURL("https://github.com/rweather/arduinolibs");
+        string link = "https://github.com/rweather/arduinolibs";
+        string descriptionText = "This link is taking you to the github page of the arduino library for this encryption";
+        goToLink.ShowGoToLinkPanel(link, descriptionText);
+        // Application.OpenURL("https://github.com/rweather/arduinolibs");
     }
 
     public void OpenWebsite3()
     {
-        Application.OpenURL("https://github.com/Octoate/ArduinoDES");
+        string link = "https://github.com/Octoate/ArduinoDES";
+        string descriptionText = "This link is taking you to the github page of the arduino library for this encryption";
+        goToLink.ShowGoToLinkPanel(link, descriptionText);
+        // Application.OpenURL("https://github.com/Octoate/ArduinoDES");
     }
 
     // Optional: call this if the viewport size changes at runtime (e.g., orientation, window resize)
