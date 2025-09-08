@@ -134,14 +134,14 @@ public class RobotArmPartPositionController : MonoBehaviour, IHideablePanel
     private void OnSliderChanged(int index, float value)
     {
         tempRotations[index] = value;
-        ApplyRotation(index, value);
+        ApplyRotation(index, value, 1);
     }
 
     private void OnToggleChanged(int index, bool isOn)
     {
         tempDirections[index] = isOn;
         SetInputHandlerDirection(index, isOn);
-        ApplyRotation(index, sliders[index].value);
+        ApplyRotation(index, sliders[index].value, 1);
     }
 
     private void SetMode(Mode mode, bool playTransitions = true)
@@ -161,10 +161,10 @@ public class RobotArmPartPositionController : MonoBehaviour, IHideablePanel
     private void ApplyAllPartsWithMode()
     {
         for (int i = 0; i < activeParts; i++)
-            ApplyRotation(i, sliders[i].value);
+            ApplyRotation(i, sliders[i].value, 0);
     }
 
-    private void ApplyRotation(int index, float sliderOffset)
+    private void ApplyRotation(int index, float sliderOffset, int outlineIndex)
     {
         string minKey = $"Slider{index + 1}_Min";
         string startKey = $"Slider{index + 1}_Start";
@@ -185,31 +185,31 @@ public class RobotArmPartPositionController : MonoBehaviour, IHideablePanel
         {
             case 0:
                 var h4 = robotArmInputHandler4Parts;
-                if (index == 0) h4.setPart1RotationVisual(finalRotation);
-                if (index == 1) h4.setPart2RotationVisual(finalRotation);
-                if (index == 2) h4.setPart3RotationVisual(finalRotation);
+                if (index == 0) h4.setPart1RotationVisual(finalRotation, outlineIndex);
+                if (index == 1) h4.setPart2RotationVisual(finalRotation, outlineIndex);
+                if (index == 2) h4.setPart3RotationVisual(finalRotation, outlineIndex);
                 break;
             case 1:
                 var h5 = robotArmInputHandler5Parts;
-                if (index == 0) h5.setPart1RotationVisual(finalRotation);
-                if (index == 1) h5.setPart2RotationVisual(finalRotation);
-                if (index == 2) h5.setPart3RotationVisual(finalRotation);
-                if (index == 3) h5.setPart4RotationVisual(finalRotation);
+                if (index == 0) h5.setPart1RotationVisual(finalRotation, outlineIndex);
+                if (index == 1) h5.setPart2RotationVisual(finalRotation, outlineIndex);
+                if (index == 2) h5.setPart3RotationVisual(finalRotation, outlineIndex);
+                if (index == 3) h5.setPart4RotationVisual(finalRotation, outlineIndex);
                 break;
             case 2:
                 var h5b = robotArmInputHandler5BParts;
-                if (index == 0) h5b.setPart1RotationVisual(finalRotation);
-                if (index == 1) h5b.setPart2RotationVisual(finalRotation);
-                if (index == 2) h5b.setPart3RotationVisual(finalRotation);
-                if (index == 3) h5b.setPart4RotationVisual(finalRotation);
+                if (index == 0) h5b.setPart1RotationVisual(finalRotation, outlineIndex);
+                if (index == 1) h5b.setPart2RotationVisual(finalRotation, outlineIndex);
+                if (index == 2) h5b.setPart3RotationVisual(finalRotation, outlineIndex);
+                if (index == 3) h5b.setPart4RotationVisual(finalRotation, outlineIndex);
                 break;
             case 3:
                 var h6 = robotArmInputHandler6Parts;
-                if (index == 0) h6.setPart1RotationVisual(finalRotation);
-                if (index == 1) h6.setPart2RotationVisual(finalRotation);
-                if (index == 2) h6.setPart3RotationVisual(finalRotation);
-                if (index == 3) h6.setPart4RotationVisual(finalRotation);
-                if (index == 4) h6.setPart5RotationVisual(finalRotation);
+                if (index == 0) h6.setPart1RotationVisual(finalRotation, outlineIndex);
+                if (index == 1) h6.setPart2RotationVisual(finalRotation, outlineIndex);
+                if (index == 2) h6.setPart3RotationVisual(finalRotation, outlineIndex);
+                if (index == 3) h6.setPart4RotationVisual(finalRotation, outlineIndex);
+                if (index == 4) h6.setPart5RotationVisual(finalRotation, outlineIndex);
                 break;
         }
     }

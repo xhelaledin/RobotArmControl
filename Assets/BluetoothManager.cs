@@ -15,6 +15,7 @@ public class BluetoothManager : MonoBehaviour, IHideablePanel
     public GameObject settingsPanel;
     public GameObject bluetoothMainPanel;
     public GameObject bluetoothHandlePanel;
+    public GameObject bluetoothEnablePanel;
 
     [Header("Bluetooth Status Button")]
     public Button mainPageBluetoothButton;
@@ -73,8 +74,8 @@ public class BluetoothManager : MonoBehaviour, IHideablePanel
     private List<string> lastScannedList = new List<string>();
 
     private bool mainPageButtonFlag;
-
     private bool bluetoothHandlePanelFlag;
+    private bool bluetoothEnablePanelFlag;
 
     private void Awake()
     {
@@ -95,30 +96,11 @@ public class BluetoothManager : MonoBehaviour, IHideablePanel
     {
         if (Application.platform != RuntimePlatform.Android) return;
 
-        // Request permissions
-        if (!Permission.HasUserAuthorizedPermission(Permission.CoarseLocation) ||
-            !Permission.HasUserAuthorizedPermission(Permission.FineLocation) ||
-            !Permission.HasUserAuthorizedPermission("android.permission.BLUETOOTH") ||
-            !Permission.HasUserAuthorizedPermission("android.permission.BLUETOOTH_ADMIN") ||
-            !Permission.HasUserAuthorizedPermission("android.permission.BLUETOOTH_SCAN") ||
-            !Permission.HasUserAuthorizedPermission("android.permission.BLUETOOTH_CONNECT"))
+        // Get BluetoothAdapter
+        using (var adapterClass = new AndroidJavaClass("android.bluetooth.BluetoothAdapter"))
         {
-            Permission.RequestUserPermissions(new string[]
-            {
-                Permission.CoarseLocation,
-                Permission.FineLocation,
-                "android.permission.BLUETOOTH",
-                "android.permission.BLUETOOTH_ADMIN",
-                "android.permission.BLUETOOTH_SCAN",
-                "android.permission.BLUETOOTH_CONNECT"
-            });
+            bluetoothAdapter = adapterClass.CallStatic<AndroidJavaObject>("getDefaultAdapter");
         }
-
-        var adapterClass = new AndroidJavaClass("android.bluetooth.BluetoothAdapter");
-        bluetoothAdapter = adapterClass.CallStatic<AndroidJavaObject>("getDefaultAdapter");
-
-        unity3dbluetoothplugin = new AndroidJavaClass("com.example.unity3dbluetoothplugin.BluetoothConnector");
-        BluetoothConnector = unity3dbluetoothplugin.CallStatic<AndroidJavaObject>("getInstance");
 
         if (bluetoothAdapter == null)
         {
@@ -126,13 +108,107 @@ public class BluetoothManager : MonoBehaviour, IHideablePanel
             return;
         }
 
+        // Check if Bluetooth is enabled
+        bool isEnabled = bluetoothAdapter.Call<bool>("isEnabled");
+        if (!isEnabled)
+        {
+            // Show system dialog to enable Bluetooth
+            using (var unityPlayer = new AndroidJavaClass("com.unity3d.player.UnityPlayer"))
+            using (var activity = unityPlayer.GetStatic<AndroidJavaObject>("currentActivity"))
+            using (var intentClass = new AndroidJavaClass("android.content.Intent"))
+            {
+                string ACTION_REQUEST_ENABLE = "android.bluetooth.adapter.action.REQUEST_ENABLE";
+                var intent = new AndroidJavaObject("android.content.Intent", ACTION_REQUEST_ENABLE);
+                activity.Call("startActivity", intent);
+            }
+
+            UpdateConnectionStatus("Status: Bluetooth off");
+            return;
+        }
+
+        // Bluetooth is enabled → continue with connector init
+        unity3dbluetoothplugin = new AndroidJavaClass("com.example.unity3dbluetoothplugin.BluetoothConnector");
+        BluetoothConnector = unity3dbluetoothplugin.CallStatic<AndroidJavaObject>("getInstance");
+
         UpdateConnectionStatus("Status: Disconnected");
     }
 
+
+        // Enum for clarity
+    private enum BluetoothPanel
+    {
+        DefaultPanel = 0,
+        MainPagePanel = 1,
+        HandlePanel = 2
+    }
+
+    // Entry functions
+    public void ShowEnablePanel()
+    {
+        StartCoroutine(EnableBluetoothRoutine(BluetoothPanel.DefaultPanel));
+    }
+
+    public void ShowEnablePanelForMainPage()
+    {
+        StartCoroutine(EnableBluetoothRoutine(BluetoothPanel.MainPagePanel));
+    }
+
+    public void ShowEnablePanelHandle()
+    {
+        StartCoroutine(EnableBluetoothRoutine(BluetoothPanel.HandlePanel));
+    }
+
+    private IEnumerator EnableBluetoothRoutine(BluetoothPanel panel)
+    {
+        InitBluetooth(); // Show system enable dialog if Bluetooth is off
+
+        // Wait for user to respond (with optional timeout)
+        float timeout = 10f; // seconds
+        float timer = 0f;
+
+        while (!IsBluetoothEnabled() && timer < timeout)
+        {
+            timer += Time.deltaTime;
+            yield return null;
+        }
+
+        if (!IsBluetoothEnabled())
+        {
+            Debug.Log("User did not enable Bluetooth.");
+            yield break; // Exit if Bluetooth still disabled
+        }
+
+        // Bluetooth enabled → continue
+        InitPairedSection();
+
+        // Show the correct panel
+        switch (panel)
+        {
+            case BluetoothPanel.HandlePanel:
+                ShowBluetoothHandlePanel();
+                break;
+            case BluetoothPanel.MainPagePanel:
+                ShowBluetoothPanelFromMainPage();
+                break;
+            default:
+                ShowBluetoothPanel();
+                break;
+        }
+    }
+
+    private bool IsBluetoothEnabled()
+    {
+        if (bluetoothAdapter == null) return false;
+        return bluetoothAdapter.Call<bool>("isEnabled");
+    }
+
+    // Panel methods (InitBluetooth removed; handled in coroutine)
     public void ShowBluetoothPanel()
     {
+        InitPairedSection();
         bluetoothMainPanel.SetActive(true);
         mainPageButtonFlag = false;
+        noDeviceEntryObject.SetActive(false);
         StartScanUI(pairedContentContainer, scannedContentContainer);
         LoadLastConnection();
         PanelManager.Instance.RegisterPanel(this);
@@ -140,26 +216,30 @@ public class BluetoothManager : MonoBehaviour, IHideablePanel
 
     public void ShowBluetoothPanelFromMainPage()
     {
+        InitPairedSection();
         settingsPanel.SetActive(true);
         bluetoothMainPanel.SetActive(true);
         mainPageButtonFlag = true;
-        StartScanUI(pairedContentContainer, scannedContentContainer);
+        noDeviceEntryObject.SetActive(false);
+        StopScanUI();
+        StopScanDevices();
         LoadLastConnection();
+        scannedDeviceList.Clear();
+        PopulateList(scannedDeviceList, scannedContentContainer, OnScannedDeviceSelected);
         PanelManager.Instance.RegisterPanel(this);
     }
 
     public void ShowBluetoothHandlePanel()
     {
+        InitPairedSection();
         bluetoothHandlePanel.SetActive(true);
         bluetoothHandlePanelFlag = true;
-        // StartScanUI(pairedContentContainer, scannedContentContainer);
-        // anyDeviceFound = true;
+        noDeviceEntryObject.SetActive(false);
         scannedDeviceList.Clear();
         PopulateList(scannedDeviceList, extraScannedContentContainer, OnScannedDeviceSelected);
         LoadLastConnection();
         PanelManager.Instance.RegisterPanel(this);
     }
-
 
     private void LoadLastConnection()
     {
@@ -173,6 +253,11 @@ public class BluetoothManager : MonoBehaviour, IHideablePanel
         {
             bluetoothHandlePanel.SetActive(false);
             bluetoothHandlePanelFlag = false;
+        }
+        else if (bluetoothEnablePanelFlag)
+        {
+            bluetoothEnablePanel.SetActive(false);
+            bluetoothEnablePanelFlag = false;
         }
         else if (!mainPageButtonFlag)
             bluetoothMainPanel.SetActive(false);
@@ -336,8 +421,8 @@ public class BluetoothManager : MonoBehaviour, IHideablePanel
                 scanningHandleAnimation.SetActive(false);
 
             PopulateList(scannedDeviceList, scannedContentContainer, OnScannedDeviceSelected);
-            if (extraScannedContentContainer != null)
-                PopulateList(scannedDeviceList, extraScannedContentContainer, OnScannedDeviceSelected);
+
+            PopulateList(scannedDeviceList, extraScannedContentContainer, OnScannedDeviceSelected);
 
             if (!anyDeviceFound && noDeviceEntryObject && handleNoDeviceEntryObject != null)
             {

@@ -92,11 +92,11 @@ public class RobotArmSelection : MonoBehaviour
         OnModelSelected(selectedModelIndex);
 
         // Subscribe to slider value changes and mark touched on user input
-        slider1.onValueChanged.AddListener(value => OnSliderValueChanged(0, value));
-        slider2.onValueChanged.AddListener(value => OnSliderValueChanged(1, value));
-        slider3.onValueChanged.AddListener(value => OnSliderValueChanged(2, value));
-        slider4.onValueChanged.AddListener(value => OnSliderValueChanged(3, value));
-        slider5.onValueChanged.AddListener(value => OnSliderValueChanged(4, value));
+        slider1.onValueChanged.AddListener(value => OnSliderValueChanged(0, value, 1));
+        slider2.onValueChanged.AddListener(value => OnSliderValueChanged(1, value, 1));
+        slider3.onValueChanged.AddListener(value => OnSliderValueChanged(2, value, 1));
+        slider4.onValueChanged.AddListener(value => OnSliderValueChanged(3, value, 1));
+        slider5.onValueChanged.AddListener(value => OnSliderValueChanged(4, value, 1));
 
         slider1.GetComponent<EventTrigger>().triggers.Add(CreatePointerUpTrigger(() => OnSliderReleased(0)));
         slider2.GetComponent<EventTrigger>().triggers.Add(CreatePointerUpTrigger(() => OnSliderReleased(1)));
@@ -232,7 +232,7 @@ public class RobotArmSelection : MonoBehaviour
                 {
                     lastSentSteppedValues[i] = steppedVal;
                     SendSliderCommand(i, steppedVal);
-                    ApplyRotation(i, steppedVal);
+                    ApplyRotation(i, steppedVal, 1);
                 }
             }
 
@@ -250,13 +250,13 @@ public class RobotArmSelection : MonoBehaviour
         return Mathf.Clamp(steppedValue, min, max);
     }
 
-    private void OnSliderValueChanged(int sliderIndex, float value)
+    private void OnSliderValueChanged(int sliderIndex, float value, int outlineIndex)
     {
         // Mark slider as touched by user
         sliderTouched[sliderIndex] = true;
 
         // Apply visual rotation immediately
-        ApplyRotation(sliderIndex, value);
+        ApplyRotation(sliderIndex, value, outlineIndex);
 
         // No sending here; continuous send coroutine or release handles sending
     }
@@ -300,49 +300,49 @@ public class RobotArmSelection : MonoBehaviour
         }
     }
 
-    private void ApplyRotation(int sliderIndex, float value)
+    private void ApplyRotation(int sliderIndex, float value, int outlineIndex)
     {
         switch (sliderIndex)
         {
             case 0:
                 switch (selectedModelIndex)
                 {
-                    case 0: robotArmInputHandler4Parts.setPart1Rotation(value); break;
-                    case 1: robotArmInputHandler5Parts.setPart1Rotation(value); break;
-                    case 2: robotArmInputHandler5BParts.setPart1Rotation(value); break;
-                    case 3: robotArmInputHandler6Parts.setPart1Rotation(value); break;
+                    case 0: robotArmInputHandler4Parts.setPart1Rotation(value, outlineIndex); break;
+                    case 1: robotArmInputHandler5Parts.setPart1Rotation(value, outlineIndex); break;
+                    case 2: robotArmInputHandler5BParts.setPart1Rotation(value, outlineIndex); break;
+                    case 3: robotArmInputHandler6Parts.setPart1Rotation(value, outlineIndex); break;
                 }
                 break;
             case 1:
                 switch (selectedModelIndex)
                 {
-                    case 0: robotArmInputHandler4Parts.setPart2Rotation(value); break;
-                    case 1: robotArmInputHandler5Parts.setPart2Rotation(value); break;
-                    case 2: robotArmInputHandler5BParts.setPart2Rotation(value); break;
-                    case 3: robotArmInputHandler6Parts.setPart2Rotation(value); break;
+                    case 0: robotArmInputHandler4Parts.setPart2Rotation(value, outlineIndex); break;
+                    case 1: robotArmInputHandler5Parts.setPart2Rotation(value, outlineIndex); break;
+                    case 2: robotArmInputHandler5BParts.setPart2Rotation(value, outlineIndex); break;
+                    case 3: robotArmInputHandler6Parts.setPart2Rotation(value, outlineIndex); break;
                 }
                 break;
             case 2:
                 switch (selectedModelIndex)
                 {
-                    case 0: robotArmInputHandler4Parts.setPart3Rotation(value); break;
-                    case 1: robotArmInputHandler5Parts.setPart3Rotation(value); break;
-                    case 2: robotArmInputHandler5BParts.setPart3Rotation(value); break;
-                    case 3: robotArmInputHandler6Parts.setPart3Rotation(value); break;
+                    case 0: robotArmInputHandler4Parts.setPart3Rotation(value, outlineIndex); break;
+                    case 1: robotArmInputHandler5Parts.setPart3Rotation(value, outlineIndex); break;
+                    case 2: robotArmInputHandler5BParts.setPart3Rotation(value, outlineIndex); break;
+                    case 3: robotArmInputHandler6Parts.setPart3Rotation(value, outlineIndex); break;
                 }
                 break;
             case 3:
                 switch (selectedModelIndex)
                 {
-                    case 1: robotArmInputHandler5Parts.setPart4Rotation(value); break;
-                    case 2: robotArmInputHandler5BParts.setPart4Rotation(value); break;
-                    case 3: robotArmInputHandler6Parts.setPart4Rotation(value); break;
+                    case 1: robotArmInputHandler5Parts.setPart4Rotation(value, outlineIndex); break;
+                    case 2: robotArmInputHandler5BParts.setPart4Rotation(value, outlineIndex); break;
+                    case 3: robotArmInputHandler6Parts.setPart4Rotation(value, outlineIndex); break;
                 }
                 break;
             case 4:
                 if (selectedModelIndex == 3)
                 {
-                    robotArmInputHandler6Parts.setPart5Rotation(value);
+                    robotArmInputHandler6Parts.setPart5Rotation(value, outlineIndex);
                 }
                 break;
         }
@@ -457,19 +457,19 @@ public class RobotArmSelection : MonoBehaviour
         slider5.value = slider5Start;
 
         // Then apply rotation visuals
-        OnSliderValueChanged(0, slider1Start);
-        OnSliderValueChanged(1, slider2Start);
-        OnSliderValueChanged(2, slider3Start);
-        OnSliderValueChanged(3, slider4Start);
-        OnSliderValueChanged(4, slider5Start);
+        OnSliderValueChanged(0, slider1Start, 0);
+        OnSliderValueChanged(1, slider2Start, 0);
+        OnSliderValueChanged(2, slider3Start, 0);
+        OnSliderValueChanged(3, slider4Start, 0);
+        OnSliderValueChanged(4, slider5Start, 0);
     }
 
     public void MoveModelAfterStartPosEdit()
     {
-        OnSliderValueChanged(0, slider1.value);
-        OnSliderValueChanged(1, slider2.value);
-        OnSliderValueChanged(2, slider3.value);
-        OnSliderValueChanged(3, slider4.value);
-        OnSliderValueChanged(4, slider5.value);
+        OnSliderValueChanged(0, slider1.value, 0);
+        OnSliderValueChanged(1, slider2.value, 0);
+        OnSliderValueChanged(2, slider3.value, 0);
+        OnSliderValueChanged(3, slider4.value, 0);
+        OnSliderValueChanged(4, slider5.value, 0);
     }
 }
