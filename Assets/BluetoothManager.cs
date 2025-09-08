@@ -29,6 +29,7 @@ public class BluetoothManager : MonoBehaviour, IHideablePanel
     public Sprite middleBackground;
     public Sprite lastBackground;
     public GameObject noDeviceEntryObject;
+    public GameObject handleNoDeviceEntryObject;
 
     // Original panel containers
     public Transform pairedContentContainer;
@@ -152,6 +153,9 @@ public class BluetoothManager : MonoBehaviour, IHideablePanel
         bluetoothHandlePanel.SetActive(true);
         bluetoothHandlePanelFlag = true;
         // StartScanUI(pairedContentContainer, scannedContentContainer);
+        // anyDeviceFound = true;
+        scannedDeviceList.Clear();
+        PopulateList(scannedDeviceList, extraScannedContentContainer, OnScannedDeviceSelected);
         LoadLastConnection();
         PanelManager.Instance.RegisterPanel(this);
     }
@@ -201,6 +205,9 @@ public class BluetoothManager : MonoBehaviour, IHideablePanel
 
         if (noDeviceEntryObject != null)
             noDeviceEntryObject.SetActive(false);
+
+        if (handleNoDeviceEntryObject != null)
+            handleNoDeviceEntryObject.SetActive(false);
     }
 
     private void StartScanUI(Transform pairedContainer, Transform scannedContainer)
@@ -212,6 +219,9 @@ public class BluetoothManager : MonoBehaviour, IHideablePanel
 
         if (noDeviceEntryObject != null)
             noDeviceEntryObject.SetActive(false);
+
+        if (handleNoDeviceEntryObject != null)
+            handleNoDeviceEntryObject.SetActive(false);
 
         PopulateList(scannedDeviceList, scannedContainer, OnScannedDeviceSelected);
 
@@ -280,7 +290,7 @@ public class BluetoothManager : MonoBehaviour, IHideablePanel
         scannedDeviceList.Clear();
         PopulateList(scannedDeviceList, scannedContentContainer, OnScannedDeviceSelected);
         if(extraScannedContentContainer != null)
-            PopulateList(scannedDeviceList, extraScannedContentContainer, OnScannedDeviceSelected);
+        PopulateList(scannedDeviceList, extraScannedContentContainer, OnScannedDeviceSelected);
 
         BluetoothConnector.CallStatic("StartScanDevices");
     }
@@ -321,26 +331,32 @@ public class BluetoothManager : MonoBehaviour, IHideablePanel
             scanHandleToggleButtonText.text = "Start Scanning";
             if (scanningAnimation != null)
                 scanningAnimation.SetActive(false);
-            
+
             if (scanningHandleAnimation != null)
                 scanningHandleAnimation.SetActive(false);
 
             PopulateList(scannedDeviceList, scannedContentContainer, OnScannedDeviceSelected);
-            if(extraScannedContentContainer != null)
+            if (extraScannedContentContainer != null)
                 PopulateList(scannedDeviceList, extraScannedContentContainer, OnScannedDeviceSelected);
 
-            if (!anyDeviceFound && noDeviceEntryObject != null)
+            if (!anyDeviceFound && noDeviceEntryObject && handleNoDeviceEntryObject != null)
+            {
                 noDeviceEntryObject.SetActive(true);
+                handleNoDeviceEntryObject.SetActive(true);
+            }
         }
     }
 
-    public void OnDeviceSelected(string address)
+        public void OnDeviceSelected(string address)
     {
-        var deviceEntry = FindDeviceEntryByMAC(address, pairedContentContainer) 
-                          ?? FindDeviceEntryByMAC(address, extraPairedContentContainer);
+        var entryMain = FindDeviceEntryByMAC(address, pairedContentContainer);
+        var entryExtra = FindDeviceEntryByMAC(address, extraPairedContentContainer);
 
-        if (deviceEntry != null)
-            deviceEntry.SetConnectionStatus("Connecting...", Color.yellow);
+        if (entryMain != null)
+            entryMain.SetConnectionStatus("Connecting...", Color.yellow);
+
+        if (entryExtra != null)
+            entryExtra.SetConnectionStatus("Connecting...", Color.yellow);
 
         if (isConnected && address == lastConnectedMAC) StopConnection();
         else StartConnection(address);
@@ -348,15 +364,19 @@ public class BluetoothManager : MonoBehaviour, IHideablePanel
 
     public void OnScannedDeviceSelected(string address)
     {
-        var deviceEntry = FindDeviceEntryByMAC(address, scannedContentContainer) 
-                          ?? FindDeviceEntryByMAC(address, extraScannedContentContainer);
+        var entryMain = FindDeviceEntryByMAC(address, scannedContentContainer);
+        var entryExtra = FindDeviceEntryByMAC(address, extraScannedContentContainer);
 
-        if (deviceEntry != null)
-            deviceEntry.SetConnectionStatus("Connecting...", Color.yellow);
+        if (entryMain != null)
+            entryMain.SetConnectionStatus("Connecting...", Color.yellow);
+
+        if (entryExtra != null)
+            entryExtra.SetConnectionStatus("Connecting...", Color.yellow);
 
         if (isConnected && address == lastConnectedMAC) StopConnection();
         else StartConnection(address);
     }
+
 
     // ------------------ Connection Methods ------------------ //
 
