@@ -15,8 +15,10 @@ public static class PlayerPrefsKeyRegistry
         { "Open_Command", (PrefType.String, PrefCategory.BluetoothCommandConstruct) },
         { "Close_Command", (PrefType.String, PrefCategory.BluetoothCommandConstruct) },
         { "Command_Delimiter", (PrefType.String, PrefCategory.BluetoothCommandConstruct) },
-        { "OpenButtonValue", (PrefType.Int, PrefCategory.BluetoothCommandConstruct) },
-        { "CloseButtonValue", (PrefType.Int, PrefCategory.BluetoothCommandConstruct) },
+        { "List_Delimiter", (PrefType.String, PrefCategory.BluetoothCommandConstruct) },
+        // { "OpenButtonValue", (PrefType.Int, PrefCategory.BluetoothCommandConstruct) },
+        // { "CloseButtonValue", (PrefType.Int, PrefCategory.BluetoothCommandConstruct) },
+        { "SingleModeToggle", (PrefType.Int, PrefCategory.BluetoothCommandConstruct) },
 
         // Encryption
         { "KeyPref", (PrefType.String, PrefCategory.Encryption) },
@@ -47,9 +49,15 @@ public static class PlayerPrefsKeyRegistry
         { "Slider5_Max", (PrefType.Int, PrefCategory.SliderConfig) },
         { "Slider5_Start", (PrefType.Int, PrefCategory.SliderConfig) },
         { "Slider5_FlipDirection", (PrefType.Int, PrefCategory.SliderConfig) },
-        { "SelectedModelIndex", (PrefType.Int, PrefCategory.SliderConfig) },
+        { "OpenButtonValue", (PrefType.Int, PrefCategory.SliderConfig) },
+        { "CloseButtonValue", (PrefType.Int, PrefCategory.SliderConfig) },
+        { "SendContinuously", (PrefType.Int, PrefCategory.SliderConfig) },
+        { "SendIntervalStep", (PrefType.Int, PrefCategory.SliderConfig) },
+
+        // General Saved with slider config
         { "OpenButtonPressed", (PrefType.Int, PrefCategory.SliderConfig) },
         { "CloseButtonPressed", (PrefType.Int, PrefCategory.SliderConfig) },
+        { "SelectedModelIndex", (PrefType.Int, PrefCategory.SliderConfig) },
 
         // 3D Model Visual Start Rotations and Directions
         { "model4startRotationpart1", (PrefType.Float, PrefCategory.Model3DVisual) },

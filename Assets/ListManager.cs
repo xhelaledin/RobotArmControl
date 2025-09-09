@@ -1,13 +1,15 @@
 using UnityEngine;
-using TMPro;
 using UnityEngine.UI;
 using System.Collections.Generic;
 using System.Linq;
+using TMPro;
 
 public class ListManager : MonoBehaviour
 {
     public GameObject saveItemPrefab;
+    public GameObject noSavesPrefab;   // 👈 Prefab to show when list is empty
     public Transform content;
+
     public RobotArmInputHandler4Parts armInputHandler4Parts;
     public RobotArmInputHandler5Parts armInputHandler5Parts;
     public RobotArmInputHandler5BParts armInputHandler5BParts;
@@ -15,33 +17,67 @@ public class ListManager : MonoBehaviour
 
     public BluetoothCommandConstructor bluetoothCommandConstructor;
 
-    private Button currentVisibleButton2;
+    [Header("Button Sprites")]
+    public Sprite runNormalSprite;
+    public Sprite runSelectedSprite;
+    public Sprite viewNormalSprite;
+    public Sprite viewSelectedSprite;
+
     private int selectedModelIndex;
+
+    // Track global selection across all save items
+    private SaveItemManager currentlySelectedItem = null;
+    private Button currentlySelectedButton = null;
+    private string currentlySelectedType = "";
+
+    private GameObject noSavesInstance = null; // 👈 Track spawned "no saves" object
 
     void Start()
     {
-        // Get the selected model index from PlayerPrefs
         selectedModelIndex = PlayerPrefs.GetInt("SelectedModelIndex", 0);
-
         PopulateList();
     }
 
     public void PopulateList()
     {
-
         selectedModelIndex = PlayerPrefs.GetInt("SelectedModelIndex", 0);
-        
-        // Destroy old items
+
+        // Destroy everything except the "no saves" instance
         foreach (Transform child in content)
         {
-            Destroy(child.gameObject);
+            if (noSavesInstance == null || child.gameObject != noSavesInstance)
+                Destroy(child.gameObject);
         }
 
-        // Create new save items for the selected model
-        foreach (string name in GetAllSaveNames())
+        HashSet<string> saves = GetAllSaveNames();
+
+        if (saves.Count == 0)
         {
-            CreateSaveItem(name);
+            // Show "no saves" prefab
+            if (noSavesPrefab != null && noSavesInstance == null)
+            {
+                noSavesInstance = Instantiate(noSavesPrefab, content);
+            }
         }
+        else
+        {
+            // Hide/remove "no saves" prefab if exists
+            if (noSavesInstance != null)
+            {
+                Destroy(noSavesInstance);
+                noSavesInstance = null;
+            }
+
+            foreach (string name in saves)
+            {
+                CreateSaveItem(name);
+            }
+        }
+
+        // Reset selection when list is refreshed
+        currentlySelectedItem = null;
+        currentlySelectedButton = null;
+        currentlySelectedType = "";
     }
 
     private HashSet<string> GetAllSaveNames()
@@ -53,23 +89,49 @@ public class ListManager : MonoBehaviour
     private void CreateSaveItem(string saveName)
     {
         GameObject newItem = Instantiate(saveItemPrefab, content);
-        TMP_Text title = newItem.transform.Find("PositionTitle").GetComponent<TMP_Text>();
-        title.text = saveName;
 
-        Button deleteBtn = newItem.transform.Find("DeleteButton").GetComponent<Button>();
-        Button runBtn = newItem.transform.Find("RunButton").GetComponent<Button>();
-        Button viewBtn = newItem.transform.Find("SaveButton").GetComponent<Button>();
-        Button runBtn2 = newItem.transform.Find("RunButton2").GetComponent<Button>();
-        Button viewBtn2 = newItem.transform.Find("SaveButton2").GetComponent<Button>();
+        SaveItemManager saveItemManager = newItem.GetComponent<SaveItemManager>();
 
-        runBtn2.gameObject.SetActive(false);
-        viewBtn2.gameObject.SetActive(false);
+        string raw = PlayerPrefs.GetString($"SavedArray_{selectedModelIndex}_{saveName}");
+        string[] parts = raw.Split(':');
+        if (parts.Length >= 2)
+        {
+            string[] valueAndDate = parts[1].Split(';');
+            if (valueAndDate.Length >= 2)
+            {
+                string valuesPart = valueAndDate[0];
+                string datePart = valueAndDate[1];
 
-        string localName = saveName;
+                int[] values = valuesPart
+                    .Split(',')
+                    .Where(s => int.TryParse(s, out _))
+                    .Select(int.Parse)
+                    .ToArray();
 
-        deleteBtn.onClick.AddListener(() => DeleteSave(localName, newItem));
-        runBtn.onClick.AddListener(() => RunSave(localName, runBtn2));
-        viewBtn.onClick.AddListener(() => ViewSave(localName, viewBtn2));
+                saveItemManager.SetData(saveName, values, datePart);
+            }
+            else
+            {
+                saveItemManager.SetData(saveName, new int[0], "");
+            }
+        }
+        else
+        {
+            saveItemManager.SetData(saveName, new int[0], "");
+        }
+
+        // Assign sprites for buttons
+        saveItemManager.runNormalSprite = runNormalSprite;
+        saveItemManager.runSelectedSprite = runSelectedSprite;
+        saveItemManager.viewNormalSprite = viewNormalSprite;
+        saveItemManager.viewSelectedSprite = viewSelectedSprite;
+
+        saveItemManager.SetupButtons(
+            saveName,
+            DeleteSave,
+            OnRunButtonClicked,
+            OnViewButtonClicked
+        );
     }
 
     private void DeleteSave(string saveName, GameObject saveItem)
@@ -82,28 +144,82 @@ public class ListManager : MonoBehaviour
         PlayerPrefs.Save();
 
         Destroy(saveItem);
+
+        if (currentlySelectedItem != null && currentlySelectedItem.gameObject == saveItem)
+        {
+            currentlySelectedItem = null;
+            currentlySelectedButton = null;
+            currentlySelectedType = "";
+        }
+
+        // Refresh list (to possibly show "no saves" prefab)
+        PopulateList();
     }
 
-    private void RunSave(string saveName, Button runBtn2)
+    private void OnRunButtonClicked(string saveName, Button runBtn)
     {
-        // Loading the saved data and applying it
         int[] values = LoadSave(saveName);
         ApplySavedValues(values);
-
         bluetoothCommandConstructor.ConstructSaveCommand(values);
+
+        SaveItemManager itemManager = runBtn.GetComponentInParent<SaveItemManager>();
+        if (itemManager != null)
+        {
+            UpdateGlobalButtonVisuals(itemManager, runBtn, "run");
+        }
     }
 
-    private void ViewSave(string saveName, Button viewBtn2)
+    private void OnViewButtonClicked(string saveName, Button viewBtn)
     {
         int[] values = LoadSave(saveName);
         ApplySavedValues(values);
+
+        SaveItemManager itemManager = viewBtn.GetComponentInParent<SaveItemManager>();
+        if (itemManager != null)
+        {
+            UpdateGlobalButtonVisuals(itemManager, viewBtn, "view");
+        }
+    }
+
+    private void UpdateGlobalButtonVisuals(SaveItemManager itemManager, Button clickedButton, string buttonType)
+    {
+        if (currentlySelectedButton != null && currentlySelectedItem != null)
+        {
+            if (currentlySelectedType == "run")
+                currentlySelectedItem.SetRunButtonNormal();
+            else if (currentlySelectedType == "view")
+                currentlySelectedItem.SetViewButtonNormal();
+        }
+
+        if (buttonType == "run")
+            itemManager.SetRunButtonSelected();
+        else if (buttonType == "view")
+            itemManager.SetViewButtonSelected();
+
+        currentlySelectedButton = clickedButton;
+        currentlySelectedType = buttonType;
+        currentlySelectedItem = itemManager;
     }
 
     private int[] LoadSave(string saveName)
     {
-        string json = PlayerPrefs.GetString($"SavedArray_{selectedModelIndex}_{saveName}");
-        ArmSaveData data = JsonUtility.FromJson<ArmSaveData>(json);
-        return data.values;
+        string raw = PlayerPrefs.GetString($"SavedArray_{selectedModelIndex}_{saveName}");
+        if (string.IsNullOrEmpty(raw) || !raw.Contains(":"))
+            return new int[0];
+
+        string[] parts = raw.Split(':');
+        if (parts.Length < 2)
+            return new int[0];
+
+        string[] valueAndDate = parts[1].Split(';');
+        if (valueAndDate.Length < 1)
+            return new int[0];
+
+        return valueAndDate[0]
+            .Split(',')
+            .Where(s => int.TryParse(s, out _))
+            .Select(int.Parse)
+            .ToArray();
     }
 
     private void ApplySavedValues(int[] values)

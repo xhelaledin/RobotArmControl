@@ -1,9 +1,19 @@
 using UnityEngine;
+using System.Collections;
+using System.Collections.Generic;
 
 public class RobotArmInputHandler6Parts : MonoBehaviour
 {
     public Transform part1, part2, part3, part4, part5;
     public Transform part6A, part6B, part7A, part7B;
+
+    [Header("Outline References")]
+    public Outline outlinePart1;
+    public Outline outlinePart2;
+    public Outline outlinePart3;
+    public Outline outlinePart4;
+    public Outline outlinePart5;
+    public Outline outlinePart6A, outlinePart6B, outlinePart7A, outlinePart7B;
 
     private bool[] directions = new bool[5];
     private float part1StartRotation;
@@ -12,11 +22,101 @@ public class RobotArmInputHandler6Parts : MonoBehaviour
     private float part4StartRotation;
     private float part5StartRotation;
 
-    private void Start()
+    [Header("Outline Settings")]
+    public float outlineMaxWidth = 5f;
+    public float outlineFadeDelay = 0.5f;
+    public float outlineFadeDuration = 0.4f;
+
+    private readonly Dictionary<Outline, Coroutine> fadeRoutines = new Dictionary<Outline, Coroutine>();
+
+    void Start()
     {
         LoadStartRotationsFromPrefs();
+        InitAllOutlines();
     }
 
+    void OnDisable()
+    {
+        foreach (var kv in fadeRoutines)
+        {
+            if (kv.Value != null) StopCoroutine(kv.Value);
+        }
+        fadeRoutines.Clear();
+    }
+
+    private void InitAllOutlines()
+    {
+        DisableOutline(outlinePart1);
+        DisableOutline(outlinePart2);
+        DisableOutline(outlinePart3);
+        DisableOutline(outlinePart4);
+        DisableOutline(outlinePart5);
+        DisableOutline(outlinePart6A);
+        DisableOutline(outlinePart6B);
+        DisableOutline(outlinePart7A);
+        DisableOutline(outlinePart7B);
+    }
+
+    private void DisableOutline(Outline outline)
+    {
+        if (outline != null)
+        {
+            outline.OutlineWidth = 0f;
+            outline.enabled = false;
+            CancelFade(outline);
+        }
+    }
+
+    private void CancelFade(Outline outline)
+    {
+        if (outline == null) return;
+        if (fadeRoutines.TryGetValue(outline, out var routine) && routine != null)
+        {
+            StopCoroutine(routine);
+        }
+        fadeRoutines.Remove(outline);
+    }
+
+    private void TriggerOutline(Outline outline)
+    {
+        if (outline == null) return;
+
+        CancelFade(outline);
+
+        outline.enabled = true;
+        outline.OutlineColor = Color.white;
+        outline.OutlineWidth = outlineMaxWidth;
+
+        var co = StartCoroutine(FadeOutlineAfterInactivity(outline));
+        fadeRoutines[outline] = co;
+    }
+
+    private IEnumerator FadeOutlineAfterInactivity(Outline outline)
+    {
+        yield return new WaitForSeconds(outlineFadeDelay);
+
+        float elapsed = 0f;
+        float startWidth = outline != null ? outline.OutlineWidth : 0f;
+
+        while (outline != null && elapsed < outlineFadeDuration)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / outlineFadeDuration);
+            outline.OutlineWidth = Mathf.Lerp(startWidth, 0f, t);
+            yield return null;
+        }
+
+        if (outline != null)
+        {
+            outline.OutlineWidth = 0f;
+            outline.enabled = false;
+            fadeRoutines.Remove(outline);
+        }
+    }
+
+    // -------------------------
+    // Rotation Methods
+    // -------------------------
     public void LoadStartRotationsFromPrefs()
     {
         part1StartRotation = PlayerPrefs.GetFloat("model6startRotationpart1", 0f);
@@ -25,11 +125,16 @@ public class RobotArmInputHandler6Parts : MonoBehaviour
         part4StartRotation = PlayerPrefs.GetFloat("model6startRotationpart4", 0f);
         part5StartRotation = PlayerPrefs.GetFloat("model6startRotationpart5", 0f);
 
-        setPart1StartRotation(part1StartRotation);
-        setPart2StartRotation(part2StartRotation);
-        setPart3StartRotation(part3StartRotation);
-        setPart4StartRotation(part4StartRotation);
-        setPart5StartRotation(part5StartRotation);
+        ApplyAllStartRotations();
+    }
+
+    private void ApplyAllStartRotations()
+    {
+        setPart1StartRotation(part1StartRotation, 0);
+        setPart2StartRotation(part2StartRotation, 0);
+        setPart3StartRotation(part3StartRotation, 0);
+        setPart4StartRotation(part4StartRotation, 0);
+        setPart5StartRotation(part5StartRotation, 0);
     }
 
     public void SetDirection(int partIndex, bool isPositive)
@@ -38,94 +143,153 @@ public class RobotArmInputHandler6Parts : MonoBehaviour
             directions[partIndex] = isPositive;
     }
 
-    public void setPart1StartRotation(float zRotation)
+    // Start rotation methods with optional outline trigger
+    public void setPart1StartRotation(float zRotation, int outlineIndex)
     {
+        if (outlineIndex == 1) TriggerOutline(outlinePart1);
         part1StartRotation = zRotation;
         float adj = directions[0] ? zRotation : -zRotation;
-        part1.localEulerAngles = new Vector3(180f, 0f, 90 + adj);
+        part1.localEulerAngles = new Vector3(180f, 0f, 270 + adj);
     }
 
-    public void setPart2StartRotation(float zRotation)
+    public void setPart2StartRotation(float zRotation, int outlineIndex)
     {
+        if (outlineIndex == 1) TriggerOutline(outlinePart2);
         part2StartRotation = zRotation;
         float adj = directions[1] ? zRotation : -zRotation;
-        part2.localEulerAngles = new Vector3(270f, 0.185f, 290 + adj);
+        part2.localEulerAngles = new Vector3(270f, 0.185f, 105 + adj);
     }
 
-    public void setPart3StartRotation(float zRotation)
+    public void setPart3StartRotation(float zRotation, int outlineIndex)
     {
+        if (outlineIndex == 1) TriggerOutline(outlinePart3);
         part3StartRotation = zRotation;
         float adj = directions[2] ? zRotation : -zRotation;
         part3.localEulerAngles = new Vector3(270f, 129.6f, 240 + adj);
     }
 
-    public void setPart4StartRotation(float zRotation)
+    public void setPart4StartRotation(float zRotation, int outlineIndex)
     {
+        if (outlineIndex == 1) TriggerOutline(outlinePart4);
         part4StartRotation = zRotation;
         float adj = directions[3] ? zRotation : -zRotation;
         part4.localEulerAngles = new Vector3(270f, 129.6f, 340 + adj);
     }
 
-    public void setPart5StartRotation(float zRotation)
+    public void setPart5StartRotation(float zRotation, int outlineIndex)
     {
+        if (outlineIndex == 1) TriggerOutline(outlinePart5);
         part5StartRotation = zRotation;
         float adj = directions[4] ? zRotation : -zRotation;
         part5.localEulerAngles = new Vector3(0f, 0f, adj);
     }
 
-    public void setPart1Rotation(float delta)
+    // Rotation methods
+    public void setPart1Rotation(float delta, int outlineIndex)
     {
+        if (outlineIndex == 1) TriggerOutline(outlinePart1);
         float adj = directions[0] ? delta : -delta;
-        part1.localEulerAngles = new Vector3(180f, 0f, 90 + adj + part1StartRotation);
+        part1.localEulerAngles = new Vector3(180f, 0f, 270 + adj + part1StartRotation);
     }
 
-    public void setPart2Rotation(float delta)
+    public void setPart2Rotation(float delta, int outlineIndex)
     {
+        if (outlineIndex == 1) TriggerOutline(outlinePart2);
         float adj = directions[1] ? delta : -delta;
-        part2.localEulerAngles = new Vector3(270f, 0.185f, 290 + adj + part2StartRotation);
+        part2.localEulerAngles = new Vector3(270f, 0.185f, 105 + adj + part2StartRotation);
     }
 
-    public void setPart3Rotation(float delta)
+    public void setPart3Rotation(float delta, int outlineIndex)
     {
+        if (outlineIndex == 1) TriggerOutline(outlinePart3);
         float adj = directions[2] ? delta : -delta;
         part3.localEulerAngles = new Vector3(270f, 129.6f, 240 + adj + part3StartRotation);
     }
 
-    public void setPart4Rotation(float delta)
+    public void setPart4Rotation(float delta, int outlineIndex)
     {
+        if (outlineIndex == 1) TriggerOutline(outlinePart4);
         float adj = directions[3] ? delta : -delta;
         part4.localEulerAngles = new Vector3(270f, 129.6f, 340 + adj + part4StartRotation);
     }
 
-    public void setPart5Rotation(float delta)
+    public void setPart5Rotation(float delta, int outlineIndex)
     {
+        if (outlineIndex == 1) TriggerOutline(outlinePart5);
         float adj = directions[4] ? delta : -delta;
         part5.localEulerAngles = new Vector3(0f, 0f, adj + part5StartRotation);
     }
 
+    // Visual rotation methods (without start rotation added)
+    public void setPart1RotationVisual(float delta, int outlineIndex)
+    {
+        if (outlineIndex == 1) TriggerOutline(outlinePart1);
+        float adj = directions[0] ? delta : -delta;
+        part1.localEulerAngles = new Vector3(180f, 0f, 270 + adj);
+    }
+
+    public void setPart2RotationVisual(float delta, int outlineIndex)
+    {
+        if (outlineIndex == 1) TriggerOutline(outlinePart2);
+        float adj = directions[1] ? delta : -delta;
+        part2.localEulerAngles = new Vector3(270f, 0.185f, 105 + adj);
+    }
+
+    public void setPart3RotationVisual(float delta, int outlineIndex)
+    {
+        if (outlineIndex == 1) TriggerOutline(outlinePart3);
+        float adj = directions[2] ? delta : -delta;
+        part3.localEulerAngles = new Vector3(270f, 129.6f, 240 + adj);
+    }
+
+    public void setPart4RotationVisual(float delta, int outlineIndex)
+    {
+        if (outlineIndex == 1) TriggerOutline(outlinePart4);
+        float adj = directions[3] ? delta : -delta;
+        part4.localEulerAngles = new Vector3(270f, 129.6f, 340 + adj);
+    }
+
+    public void setPart5RotationVisual(float delta, int outlineIndex)
+    {
+        if (outlineIndex == 1) TriggerOutline(outlinePart5);
+        float adj = directions[4] ? delta : -delta;
+        part5.localEulerAngles = new Vector3(0f, 0f, adj);
+    }
+
+    // Claw
     public void OpenClaw()
     {
-        part6A.localEulerAngles = new Vector3(270f, 170f, 0f);
-        part7A.localEulerAngles = new Vector3(90f, 190.000015f, 0f);
-        part6B.localEulerAngles = new Vector3(270f, 197.999985f, 0f);
-        part7B.localEulerAngles = new Vector3(270f, 197.999985f, 0f);
+        TriggerOutline(outlinePart6A);
+        TriggerOutline(outlinePart6B);
+        TriggerOutline(outlinePart7A);
+        TriggerOutline(outlinePart7B);
+
+        part6A.localEulerAngles = new Vector3(270f, 170f, 300f);
+        part7A.localEulerAngles = new Vector3(90f, 190f, 62f);
+        part6B.localEulerAngles = new Vector3(270f, 198f, 300f);
+        part7B.localEulerAngles = new Vector3(270f, 198f, 222f);
     }
 
     public void CloseClaw()
     {
-        part6A.localEulerAngles = new Vector3(-90f, 0f, 170f);
-        part7A.localEulerAngles = new Vector3(-90f, 0f, 58f);
-        part6B.localEulerAngles = new Vector3(90f, 0f, 170f);
-        part7B.localEulerAngles = new Vector3(-90f, 0f, 58f);
+        TriggerOutline(outlinePart6A);
+        TriggerOutline(outlinePart6B);
+        TriggerOutline(outlinePart7A);
+        TriggerOutline(outlinePart7B);
+
+        part6A.localEulerAngles = new Vector3(270f, 170f, 275f);
+        part7A.localEulerAngles = new Vector3(90f, 190f, 50f);
+        part6B.localEulerAngles = new Vector3(270f, 198f, 355f);
+        part7B.localEulerAngles = new Vector3(270f, 198f, 192f);
     }
 
     public void ApplySavedValues(int[] saveValues)
     {
-        setPart1Rotation(saveValues[0]);
-        setPart2Rotation(saveValues[1]);
-        setPart3Rotation(saveValues[2]);
-        setPart4Rotation(saveValues[3]);
-        setPart5Rotation(saveValues[4]);
+        setPart1Rotation(saveValues[0], 0);
+        setPart2Rotation(saveValues[1], 0);
+        setPart3Rotation(saveValues[2], 0);
+        setPart4Rotation(saveValues[3], 0);
+        setPart5Rotation(saveValues[4], 0);
 
         if (saveValues.Length > 5 && saveValues[5] == 1)
             CloseClaw();

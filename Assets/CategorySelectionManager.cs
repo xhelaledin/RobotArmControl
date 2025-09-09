@@ -1,113 +1,210 @@
-using UnityEngine;
-using UnityEngine.UI;
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using System;
+using UnityEngine;
+using UnityEngine.UI;
+using Lean.Gui;
 
-public class CategorySelectionManager : MonoBehaviour
+public class CategorySelectionManager : MonoBehaviour, IHideablePanel
 {
-    [Header("Category Toggles & Buttons")]
-    public Toggle sliderConfigToggle;
-    public Button sliderConfigButton;
+    [Header("Sprites for Toggle Positions")]
+    public Sprite spriteSolo;
+    public Sprite spriteFirst;
+    public Sprite spriteMiddle;
+    public Sprite spriteLast;
 
-    public Toggle bluetoothCommandToggle;
-    public Button bluetoothCommandButton;
+    [Header("Category Icons (4)")]
+    public Sprite categoryIcon0;
+    public Sprite categoryIcon1;
+    public Sprite categoryIcon2;
+    public Sprite categoryIcon3;
 
-    public Toggle encryptionToggle;
-    public Button encryptionButton;
-
-    [Header("Global Toggle")]
-    public Toggle selectAllToggle;
-
-    [Header("Panel Buttons")]
+    [Header("Prefabs & UI")]
+    public GameObject toggleItemPrefab;     // Prefab with CategoryToggleItem attached
+    public LeanToggle selectAllToggle;      // Select All toggle (LeanToggle)
+    public Transform toggleContainer;       // Parent transform for toggles
     public Button confirmButton;
-    public Button cancelButton;
 
     [Header("Reference to Backup Logic")]
     public PlayerPrefsBackup prefsBackup;
 
-    private Dictionary<PrefCategory, Toggle> categoryToggles;
-    private Dictionary<PrefCategory, Button> categoryButtons;
+    // Hardcoded titles and descriptions in code (must match enum order!)
+    private readonly string[] categoryTitles = new string[]
+    {
+        "Command Construct",
+        "Encryption",
+        "Slider Config",
+        "Visual Config"
+    };
 
+    private readonly string[] categoryDescriptions = new string[]
+    {
+        "Command Configurations",
+        "Encryption Type and Keys",
+        "Slider Configurations",
+        "3d Model Configurations"
+    };
+
+    [Serializable]
+    public class ItemData
+    {
+        public string itemName;
+        public PrefCategory prefCategory;
+        public int category; // icon index
+    }
+
+    private List<ItemData> availableItems = new List<ItemData>();
+    private List<CategoryToggleItem> toggleItems = new List<CategoryToggleItem>();
+
+    private Sprite[] categorySprites;
     private bool isRestoreMode = false;
     private string restoreFilePath;
     private List<PrefCategory> restoreAvailableCategories;
 
-    void Awake()
+    private void Awake()
     {
-        categoryToggles = new Dictionary<PrefCategory, Toggle>
-        {
-            { PrefCategory.SliderConfig, sliderConfigToggle },
-            { PrefCategory.BluetoothCommandConstruct, bluetoothCommandToggle },
-            { PrefCategory.Encryption, encryptionToggle }
-        };
+        categorySprites = new Sprite[] { categoryIcon0, categoryIcon1, categoryIcon2, categoryIcon3 };
 
-        categoryButtons = new Dictionary<PrefCategory, Button>
+        if (selectAllToggle != null)
         {
-            { PrefCategory.SliderConfig, sliderConfigButton },
-            { PrefCategory.BluetoothCommandConstruct, bluetoothCommandButton },
-            { PrefCategory.Encryption, encryptionButton }
-        };
+            selectAllToggle.OnOn.RemoveAllListeners();
+            selectAllToggle.OnOff.RemoveAllListeners();
 
-        // Button clicks also toggle associated category toggle
-        foreach (var kvp in categoryButtons)
-        {
-            var category = kvp.Key;
-            kvp.Value.onClick.AddListener(() => ToggleCategory(category));
+            selectAllToggle.OnOn.AddListener(OnSelectAllOn);
+            selectAllToggle.OnOff.AddListener(OnSelectAllOff);
         }
 
-        // Each toggle change updates Select All
-        foreach (var toggle in categoryToggles.Values)
+        if (confirmButton != null)
         {
-            toggle.onValueChanged.AddListener(_ => UpdateSelectAllState());
-        }
-
-        selectAllToggle.onValueChanged.AddListener(OnSelectAllToggled);
-
-        confirmButton.onClick.AddListener(OnConfirm);
-        cancelButton.onClick.AddListener(HidePanel);
-    }
-
-    private void ToggleCategory(PrefCategory category)
-    {
-        if (categoryToggles.TryGetValue(category, out var toggle))
-        {
-            toggle.isOn = !toggle.isOn;
+            confirmButton.onClick.RemoveAllListeners();
+            confirmButton.onClick.AddListener(OnConfirm);
         }
     }
 
-    private void OnSelectAllToggled(bool isOn)
+    private void OnSelectAllOn()
     {
-        foreach (var toggle in categoryToggles.Values)
+        OnSelectAllToggleChanged(true);
+    }
+
+    private void OnSelectAllOff()
+    {
+        OnSelectAllToggleChanged(false);
+    }
+
+    public void RefreshToggleList(List<ItemData> newAvailableItems)
+    {
+        availableItems.Clear();
+        toggleItems.Clear();
+
+        // Sort incoming items by enum order (PrefCategory enum order)
+        var orderedItems = newAvailableItems.OrderBy(item => (int)item.prefCategory).ToList();
+
+        // Assign sorted list to availableItems
+        availableItems = orderedItems;
+
+        // Clear existing toggles from container
+        foreach (Transform child in toggleContainer)
         {
-            if (toggle.interactable)
-                toggle.isOn = isOn;
+            Destroy(child.gameObject);
+        }
+
+        if (availableItems.Count == 0) return;
+
+        int enumCount = Enum.GetValues(typeof(PrefCategory)).Length;
+
+        // Defensive checks
+        if (categoryTitles.Length != enumCount)
+        {
+            Debug.LogWarning("[CategorySelectionManager] categoryTitles length does not match PrefCategory enum count.");
+        }
+        if (categoryDescriptions.Length != enumCount)
+        {
+            Debug.LogWarning("[CategorySelectionManager] categoryDescriptions length does not match PrefCategory enum count.");
+        }
+
+        for (int i = 0; i < availableItems.Count; i++)
+        {
+            var data = availableItems[i];
+            GameObject go = Instantiate(toggleItemPrefab, toggleContainer);
+            go.name = "ToggleItem_" + data.itemName;
+
+            var toggleItem = go.GetComponent<CategoryToggleItem>();
+            if (toggleItem == null)
+            {
+                Debug.LogError("[CategorySelectionManager] Toggle prefab missing CategoryToggleItem component!");
+                continue;
+            }
+
+            int iconIndex = (int)data.prefCategory;
+
+            string title = (iconIndex >= 0 && iconIndex < categoryTitles.Length) ? categoryTitles[iconIndex] : data.itemName;
+            string description = (iconIndex >= 0 && iconIndex < categoryDescriptions.Length) ? categoryDescriptions[iconIndex] : "";
+
+            toggleItem.Setup(
+                title,
+                description,
+                data.prefCategory,
+                iconIndex,
+                categorySprites,
+                spriteSolo, spriteFirst, spriteMiddle, spriteLast,
+                i, availableItems.Count
+            );
+
+            toggleItem.OnToggleChanged += _ => UpdateSelectAllToggleStatus();
+
+            toggleItems.Add(toggleItem);
+        }
+
+        UpdateSelectAllToggleStatus();
+    }
+
+    private void OnSelectAllToggleChanged(bool isOn)
+    {
+        foreach (var toggleItem in toggleItems)
+        {
+            if (toggleItem.toggle.enabled && toggleItem.IsOn() != isOn)
+            {
+                toggleItem.SetOn(isOn);
+            }
         }
     }
 
-    private void UpdateSelectAllState()
+    private void UpdateSelectAllToggleStatus()
     {
-        var interactables = categoryToggles.Values.Where(t => t.interactable).ToList();
+        if (selectAllToggle == null) return;
 
-        if (interactables.All(t => t.isOn))
-            selectAllToggle.SetIsOnWithoutNotify(true);
-        else
-            selectAllToggle.SetIsOnWithoutNotify(false);
+        bool allOn = toggleItems.All(t => t.toggle.enabled && t.IsOn());
+
+        // Temporarily remove listeners to avoid recursion
+        selectAllToggle.OnOn.RemoveAllListeners();
+        selectAllToggle.OnOff.RemoveAllListeners();
+
+        selectAllToggle.Set(allOn);
+
+        selectAllToggle.OnOn.AddListener(OnSelectAllOn);
+        selectAllToggle.OnOff.AddListener(OnSelectAllOff);
     }
 
     public List<PrefCategory> GetSelectedCategories()
     {
-        return categoryToggles
-            .Where(pair => pair.Value.isOn && pair.Value.interactable)
-            .Select(pair => pair.Key)
-            .ToList();
+        var selected = new List<PrefCategory>();
+        for (int i = 0; i < toggleItems.Count; i++)
+        {
+            if (toggleItems[i].toggle.enabled && toggleItems[i].IsOn())
+            {
+                selected.Add(availableItems[i].prefCategory);
+            }
+        }
+        return selected;
     }
 
     public void ShowBackupPanel()
     {
         isRestoreMode = false;
-        ResetAll();
+        ResetAllToggles();
         gameObject.SetActive(true);
+
+        PanelManager.Instance.RegisterPanel(this);
     }
 
     public void ShowRestorePanel(string filePath, List<PrefCategory> availableCategories)
@@ -116,46 +213,34 @@ public class CategorySelectionManager : MonoBehaviour
         restoreFilePath = filePath;
         restoreAvailableCategories = availableCategories;
 
-        ResetAll();
+        ResetAllToggles();
         SetAvailableCategories(availableCategories);
         gameObject.SetActive(true);
     }
 
     private void SetAvailableCategories(List<PrefCategory> available)
     {
-        foreach (var pair in categoryToggles)
+        for (int i = 0; i < toggleItems.Count; i++)
         {
-            bool isAvailable = available.Contains(pair.Key);
-            pair.Value.interactable = isAvailable;
-            pair.Value.isOn = isAvailable;
+            bool isAvailable = available.Contains(availableItems[i].prefCategory);
 
-            // Hide the toggle if not available
-            pair.Value.gameObject.SetActive(isAvailable); 
+            toggleItems[i].SetInteractable(isAvailable);
+            toggleItems[i].SetOn(isAvailable);
+            toggleItems[i].gameObject.SetActive(isAvailable);
         }
-
-        foreach (var pair in categoryButtons)
-        {
-            bool isAvailable = available.Contains(pair.Key);
-            pair.Value.gameObject.SetActive(isAvailable);
-        }
-
-        UpdateSelectAllState();
+        UpdateSelectAllToggleStatus();
     }
 
-    private void ResetAll()
+    private void ResetAllToggles()
     {
-        foreach (var pair in categoryToggles)
+        foreach (var toggleItem in toggleItems)
         {
-            pair.Value.SetIsOnWithoutNotify(false);
-            pair.Value.interactable = true;
+            toggleItem.SetOn(false);
+            toggleItem.SetInteractable(true);
+            toggleItem.gameObject.SetActive(true);
         }
-
-        foreach (var pair in categoryButtons)
-        {
-            pair.Value.gameObject.SetActive(true);
-        }
-
-        selectAllToggle.SetIsOnWithoutNotify(false);
+        if (selectAllToggle != null)
+            selectAllToggle.Set(false);
     }
 
     public void HidePanel()
@@ -163,25 +248,32 @@ public class CategorySelectionManager : MonoBehaviour
         gameObject.SetActive(false);
     }
 
-    public void OnConfirm()
+    public bool IsPanelActive()
+    {
+        return gameObject.activeSelf;
+    }
+
+    private void OnConfirm()
     {
         var selected = GetSelectedCategories();
 
         if (selected.Count == 0)
         {
-            Debug.LogWarning("⚠️ No categories selected.");
+            Debug.LogWarning("[CategorySelectionManager] No categories selected.");
             return;
         }
 
         if (isRestoreMode)
         {
             prefsBackup.RestorePrefsFromFileWithSelectedCategories(restoreFilePath, selected);
+            HidePanel(); // Hide entire panel on restore confirm
         }
         else
         {
             prefsBackup.SavePrefsWithSelectedCategories(selected);
+            // Only hide backupPanel, not entire backupRestorePanel
+            if (prefsBackup != null && prefsBackup.backupPanel != null)
+                prefsBackup.backupPanel.SetActive(false);
         }
-
-        HidePanel();
     }
 }

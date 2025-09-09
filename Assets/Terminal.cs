@@ -6,7 +6,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine.EventSystems;
 
-public class Terminal : MonoBehaviour, IDeselectHandler
+public class Terminal : MonoBehaviour, IDeselectHandler, IHideablePanel
 {
     [Header("UI References")]
     public GameObject terminalPanel;
@@ -16,6 +16,7 @@ public class Terminal : MonoBehaviour, IDeselectHandler
     public GameObject receivedMessagePrefab;
     public GameObject dateGroupPrefab;
     public ScrollRect scrollRect;
+
 
     [Header("World Space Keyboard Handling")]
     public Canvas worldCanvas;              // Assign your World Space Canvas here
@@ -30,6 +31,9 @@ public class Terminal : MonoBehaviour, IDeselectHandler
 
     // Flag to allow defocus (used when you explicitly want to hide keyboard)
     private bool allowDefocus = false;
+
+    [Header("Connection to Other Script")]
+    public BluetoothManager bluetoothManager;
 
     private void Start()
     {
@@ -65,13 +69,20 @@ public class Terminal : MonoBehaviour, IDeselectHandler
         inputField.interactable = true;
         inputField.ActivateInputField();
         StartCoroutine(ScrollToBottomNextFrame());
+
+        PanelManager.Instance.RegisterPanel(this);
     }
 
-    public void HideTerminalPanel()
+    public void HidePanel()
     {
         terminalPanel?.SetActive(false);
         allowDefocus = true;
         inputField.DeactivateInputField();
+    }
+
+    public bool IsPanelActive()
+    {
+        return terminalPanel.activeSelf;
     }
 
     public void SendMessageFromInput()
@@ -79,9 +90,11 @@ public class Terminal : MonoBehaviour, IDeselectHandler
         string message = inputField.text;
         if (string.IsNullOrWhiteSpace(message)) return;
 
+        bluetoothManager.WriteData(message);
+
         LogSent(message);
         inputField.text = "";
-        inputField.ActivateInputField(); // Keep keyboard open and input focused after send
+        //inputField.ActivateInputField(); // Keep keyboard open and input focused after send
     }
 
     // Prevent input field from losing focus unintentionally

@@ -3,24 +3,25 @@ using UnityEngine.UI;
 using Lean.Gui;
 using System.Collections.Generic;
 
-public class ModelSelectorRadio : MonoBehaviour
+public class ModelSelectorRadio : MonoBehaviour, IHideablePanel
 {
     [Header("Core References")]
     public RobotArmSelection robotArmSelection;
-    public SaveManager       saveManager;
-    public ListManager       listManager;
-    public GameObject        settingsPanel;
+    public SaveManager saveManager;
+    public ListManager listManager;
+    public SliderScaleManager sliderScaleManager;
+    public GameObject settingsPanel;
 
     [Header("Radio Toggles (0 → 3)")]
-    public List<LeanToggle>  modelToggles;
+    public List<LeanToggle> modelToggles;
 
     [Header("Preview Image & Sprites")]
-    public Image             previewImage;
-    public List<Sprite>      modelSprites;
+    public Image previewImage;
+    public List<Sprite> modelSprites;
 
-    private const string     MODEL_PREF_KEY = "SelectedModelIndex";
-    private int              currentIndex;
-    private bool             isProgrammatic;  // true when we’re toggling siblings in code
+    private const string MODEL_PREF_KEY = "SelectedModelIndex";
+    private int currentIndex;
+    private bool isProgrammatic;  // true when we’re toggling siblings in code
 
     void Start()
     {
@@ -88,9 +89,25 @@ public class ModelSelectorRadio : MonoBehaviour
         // 5. Swap preview sprite
         if (previewImage != null && currentIndex < modelSprites.Count)
             previewImage.sprite = modelSprites[currentIndex];
+
+        robotArmSelection.MoveModelByStartValues();
     }
 
     // Optional panel show/hide
-    public void ShowSettingsPanel() => settingsPanel.SetActive(true);
-    public void HideSettingsPanel() => settingsPanel.SetActive(false);
+    public void ShowSettingsPanel()
+    {
+        settingsPanel.SetActive(true);
+        PanelManager.Instance.RegisterPanel(this);
+    }
+
+    public void HidePanel()
+    {
+        settingsPanel.SetActive(false);
+        sliderScaleManager.ReloadSelectedModel();
+    }
+
+    public bool IsPanelActive()
+    {
+        return settingsPanel.activeSelf;
+    }
 }

@@ -6,17 +6,19 @@ using System;
 using System.Linq;
 using NativeFilePickerNamespace;
 
-public class PlayerPrefsBackup : MonoBehaviour
+public class PlayerPrefsBackup : MonoBehaviour, IHideablePanel, IHideablePanel2, IHideablePanel3
 {
-    public GameObject backupRestorePanel;
-    public GameObject backupPanel;
-    public GameObject restorePanel;
+    [Header("Panels")]
+    public GameObject backupRestorePanel;  // Root panel holding backup & restore
+    public GameObject backupPanel;         // Backup subpanel
+    public GameObject restorePanel;        // Restore subpanel
+
+    [Header("Category Manager")]
     public CategorySelectionManager categorySelectionManager;
 
     private DataWrapper lastImportedData;
 
-    // === Backup ===
-
+    // === BACKUP ===
     public void SavePrefsWithSelectedCategories(List<PrefCategory> selectedCategories)
     {
         var entries = new List<Entry>();
@@ -27,13 +29,11 @@ public class PlayerPrefsBackup : MonoBehaviour
             string key = kvp.Key;
             var (type, category) = kvp.Value;
 
-            if (!selectedCategories.Contains(category)) continue;
+            if (!selectedCategories.Contains(category))
+                continue;
 
             if (!PlayerPrefs.HasKey(key))
-            {
-                Debug.Log($"❌ Key not present in PlayerPrefs: {key}");
                 continue;
-            }
 
             string value = null;
             switch (type)
@@ -52,19 +52,17 @@ public class PlayerPrefsBackup : MonoBehaviour
             if (!string.IsNullOrEmpty(value))
             {
                 entries.Add(new Entry(key, value, type.ToString(), category.ToString()));
-                Debug.Log($"📝 Saved: {key} = {value} ({type})");
                 found++;
             }
             else
             {
-                Debug.Log($"⚠️ Skipped key (empty value): {key}");
                 skipped++;
             }
         }
 
         if (found == 0)
         {
-            Debug.LogWarning("⚠️ No valid PlayerPrefs values found to back up.");
+            Debug.LogWarning("[PlayerPrefsBackup] No valid PlayerPrefs values found to back up.");
             return;
         }
 
@@ -73,26 +71,112 @@ public class PlayerPrefsBackup : MonoBehaviour
         string path = Path.Combine(Application.persistentDataPath, $"RobotArmControl_backup_{timestamp}.json");
 
         File.WriteAllText(path, json);
-        Debug.Log($"✅ Backup saved: {path} (saved: {found}, skipped: {skipped})");
+        Debug.Log($"[PlayerPrefsBackup] Backup saved: {path} (saved: {found}, skipped: {skipped})");
 
 #if UNITY_ANDROID || UNITY_IOS
         NativeFilePicker.ExportFile(path, success =>
         {
-            Debug.Log(success ? "📤 File exported!" : "❌ File export failed.");
+            Debug.Log(success ? "[PlayerPrefsBackup] File exported!" : "[PlayerPrefsBackup] File export failed.");
         });
 #endif
     }
 
+    // === BACKUP PANEL ===
     public void ShowBackupPanel()
     {
-        backupPanel?.SetActive(true);
-        categorySelectionManager.ShowBackupPanel(); // triggers toggle UI
+        if (backupRestorePanel == null || backupPanel == null || restorePanel == null || categorySelectionManager == null)
+        {
+            Debug.LogError("[PlayerPrefsBackup] UI references missing!");
+            return;
+        }
+
+        backupRestorePanel.SetActive(true);
+        backupPanel.SetActive(true);
+
+        var allCategories = PlayerPrefsKeyRegistry.KeyTypes.Values
+            .Select(v => v.category)
+            .Distinct()
+            .ToList();
+
+        var itemDataList = allCategories.Select(cat => new CategorySelectionManager.ItemData
+        {
+            itemName = cat.ToString(),
+            prefCategory = cat,
+            category = (int)cat
+        }).ToList();
+
+        categorySelectionManager.RefreshToggleList(itemDataList);
+        categorySelectionManager.ShowBackupPanel();
+
+        PanelManager.Instance.RegisterPanel(this);
+        PanelManager.Instance.PushPanel(
+            key: backupPanel,
+            hide: HidePanel,
+            isActive: IsPanelActive
+        );
     }
 
     public void HideBackupPanel() => backupPanel?.SetActive(false);
 
-    // === Restore ===
+    // IHideablePanel
+    public void HidePanel() => HideBackupPanel();
+    public bool IsPanelActive() => backupPanel != null && backupPanel.activeSelf;
 
+
+    // === BACKUP-RESTORE ROOT PANEL ===
+    public void ShowBackupRestorePanel()
+    {
+        if (backupRestorePanel == null)
+        {
+            Debug.LogError("[PlayerPrefsBackup] UI references missing!");
+            return;
+        }
+
+        backupRestorePanel.SetActive(true);
+
+        PanelManager.Instance.RegisterPanel2(this);
+        PanelManager.Instance.PushPanel(
+            key: backupRestorePanel,
+            hide: HidePanel2,
+            isActive: IsPanelActive2
+        );
+    }
+
+    public void HideBackupRestorePanel() => backupRestorePanel?.SetActive(false);
+
+    // IHideablePanel2
+    public void HidePanel2() => HideBackupRestorePanel();
+    public bool IsPanelActive2() => backupRestorePanel != null && backupRestorePanel.activeSelf;
+
+
+    // === RESTORE PANEL ===
+    public void ShowRestorePanel()
+    {
+        if (restorePanel == null)
+        {
+            Debug.LogError("[PlayerPrefsBackup] Restore panel reference missing!");
+            return;
+        }
+
+        backupRestorePanel?.SetActive(true);
+        restorePanel.SetActive(true);
+
+        PanelManager.Instance.RegisterPanel3(this);
+        PanelManager.Instance.PushPanel(
+            key: restorePanel,
+            hide: HidePanel3,
+            isActive: IsPanelActive3
+        );
+    }
+
+    public void HideRestorePanel() => restorePanel?.SetActive(false);
+
+    // IHideablePanel3
+    public void HidePanel3() => HideRestorePanel();
+    public bool IsPanelActive3() => restorePanel != null && restorePanel.activeSelf;
+
+
+    // === RESTORE LOGIC ===
     public void RestorePrefsFromFilePicker()
     {
 #if UNITY_ANDROID || UNITY_IOS
@@ -100,11 +184,10 @@ public class PlayerPrefsBackup : MonoBehaviour
         {
             if (string.IsNullOrEmpty(path))
             {
-                Debug.LogWarning("❌ No file selected for restore.");
+                Debug.LogWarning("[PlayerPrefsBackup] No file selected for restore.");
                 return;
             }
 
-            Debug.Log($"📂 Restore file: {path}");
             try
             {
                 string json = File.ReadAllText(path);
@@ -112,24 +195,38 @@ public class PlayerPrefsBackup : MonoBehaviour
 
                 if (wrapper?.entries == null || wrapper.entries.Count == 0)
                 {
-                    Debug.LogWarning("⚠️ Backup file has no data.");
+                    Debug.LogWarning("[PlayerPrefsBackup] Backup file has no data.");
                     return;
                 }
 
                 lastImportedData = wrapper;
 
-                // Ask user which categories to restore
                 var availableCategories = GetCategoriesInData(wrapper);
+
+                backupRestorePanel.SetActive(true);
+                backupPanel.SetActive(false);
+                restorePanel.SetActive(true);
+
+                var itemDataList = availableCategories.Select(cat => new CategorySelectionManager.ItemData
+                {
+                    itemName = cat.ToString(),
+                    prefCategory = cat,
+                    category = (int)cat
+                }).ToList();
+
+                categorySelectionManager.RefreshToggleList(itemDataList);
                 categorySelectionManager.ShowRestorePanel(path, availableCategories);
-                restorePanel?.SetActive(true);
+
+                // also register restore panel with history
+                ShowRestorePanel();
             }
             catch (Exception ex)
             {
-                Debug.LogError($"❌ Restore failed: {ex.Message}");
+                Debug.LogError($"[PlayerPrefsBackup] Restore failed: {ex.Message}");
             }
         }, new[] { "application/json", "text/plain" });
 #else
-        Debug.LogWarning("⚠️ Restore via file picker only works on mobile builds.");
+        Debug.LogWarning("[PlayerPrefsBackup] Restore via file picker only works on mobile builds.");
 #endif
     }
 
@@ -137,7 +234,7 @@ public class PlayerPrefsBackup : MonoBehaviour
     {
         if (lastImportedData == null)
         {
-            Debug.LogWarning("⚠️ No imported data found.");
+            Debug.LogWarning("[PlayerPrefsBackup] No imported data found.");
             return;
         }
 
@@ -153,38 +250,29 @@ public class PlayerPrefsBackup : MonoBehaviour
                 case "Int":
                     if (int.TryParse(entry.value, out int i))
                         PlayerPrefs.SetInt(entry.key, i);
-                    else
-                        Debug.LogWarning($"⚠️ Failed to parse int for key: {entry.key}");
                     break;
 
                 case "Float":
                     if (float.TryParse(entry.value, out float f))
                         PlayerPrefs.SetFloat(entry.key, f);
-                    else
-                        Debug.LogWarning($"⚠️ Failed to parse float for key: {entry.key}");
                     break;
 
                 case "String":
                     PlayerPrefs.SetString(entry.key, entry.value ?? "");
                     break;
-
-                default:
-                    Debug.LogWarning($"⚠️ Unknown type: {entry.type} for key: {entry.key}");
-                    break;
             }
 
-            Debug.Log($"🔄 Restored: {entry.key} = {entry.value} ({entry.type})");
             restored++;
         }
 
         PlayerPrefs.Save();
-        Debug.Log($"✅ PlayerPrefs restored. Total restored: {restored}");
+        Debug.Log($"[PlayerPrefsBackup] PlayerPrefs restored. Total restored: {restored}");
+
+        HideBackupRestorePanel();
+        HideRestorePanel();
 
         SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
-
-    public void ShowRestorePanel() => restorePanel?.SetActive(true);
-    public void HideRestorePanel() => restorePanel?.SetActive(false);
 
     private List<PrefCategory> GetCategoriesInData(DataWrapper data)
     {
@@ -196,7 +284,4 @@ public class PlayerPrefsBackup : MonoBehaviour
         }
         return new List<PrefCategory>(categories);
     }
-
-    public void ShowBackupRestorePanel() => backupRestorePanel?.SetActive(true);
-    public void HideBackupRestorePanel() => backupRestorePanel?.SetActive(false);
 }
