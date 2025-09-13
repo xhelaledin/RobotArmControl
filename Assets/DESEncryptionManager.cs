@@ -20,7 +20,7 @@ public class DESEncryptionManager : MonoBehaviour
         }
         else
         {
-            Debug.LogWarning("No valid DES key found in PlayerPrefs.");
+            // Debug.LogWarning("No valid DES key found in PlayerPrefs.");
         }
     }
 
@@ -28,7 +28,7 @@ public class DESEncryptionManager : MonoBehaviour
     {
         if (inputKey.Length != RequiredKeyLength)
         {
-            Debug.LogError($"DES key must be exactly {RequiredKeyLength} characters.");
+            // Debug.LogError($"DES key must be exactly {RequiredKeyLength} characters.");
             key = null;
             return;
         }

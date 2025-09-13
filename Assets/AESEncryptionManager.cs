@@ -20,7 +20,7 @@ public class AESEncryptionManager : MonoBehaviour
         }
         else
         {
-            Debug.LogWarning("No valid AES key found in PlayerPrefs.");
+            // Debug.LogWarning("No valid AES key found in PlayerPrefs.");
         }
     }
 
@@ -28,7 +28,7 @@ public class AESEncryptionManager : MonoBehaviour
     {
         if (inputKey.Length != RequiredKeyLength)
         {
-            Debug.LogError($"AES key must be exactly {RequiredKeyLength} characters.");
+            // Debug.LogError($"AES key must be exactly {RequiredKeyLength} characters.");
             key = null;
             return;
         }

@@ -79,7 +79,7 @@ public class SaveManager : MonoBehaviour, IHideablePanel
             importAllButton.onClick.AddListener(ImportAllSavesFromFile);
 
         selectedModelIndex = PlayerPrefs.GetInt("SelectedModelIndex", 0);
-        Debug.Log("Selected Model Index: " + selectedModelIndex);
+        // Debug.Log("Selected Model Index: " + selectedModelIndex);
 
         if (popupSaveButton != null)
             popupSaveButton.onClick.AddListener(StartSavingProcess);
@@ -204,7 +204,7 @@ public class SaveManager : MonoBehaviour, IHideablePanel
     public void UpdateSelectedModelIndex(int newIndex)
     {
         selectedModelIndex = newIndex;
-        Debug.Log("Selected Model Index Updated in SaveManager: " + selectedModelIndex);
+        // Debug.Log("Selected Model Index Updated in SaveManager: " + selectedModelIndex);
     }
 
     public void Toast(string message)
