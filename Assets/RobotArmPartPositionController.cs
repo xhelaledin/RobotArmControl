@@ -38,6 +38,8 @@ public class RobotArmPartPositionController : MonoBehaviour, IHideablePanel
     private enum Mode { Min, Start, Max }
     private Mode currentMode = Mode.Min;
 
+    private bool isProgrammatic; // prevents feedback loops
+
     private void Awake()
     {
         sliders = new[] { slider1, slider2, slider3, slider4, slider5 };
@@ -53,21 +55,67 @@ public class RobotArmPartPositionController : MonoBehaviour, IHideablePanel
             toggles[i].onValueChanged.AddListener(b => OnToggleChanged(idx, b));
         }
 
-        // Global mode toggles
-        minToggle.TurnOffSiblings = false;
-        startToggle.TurnOffSiblings = false;
-        maxToggle.TurnOffSiblings = false;
+        // --- Global mode radio toggles ---
+        SetupModeRadio(minToggle, Mode.Min);
+        SetupModeRadio(startToggle, Mode.Start);
+        SetupModeRadio(maxToggle, Mode.Max);
 
-        minToggle.OnOn.AddListener(() => SetMode(Mode.Min));
-        startToggle.OnOn.AddListener(() => SetMode(Mode.Start));
-        maxToggle.OnOn.AddListener(() => SetMode(Mode.Max));
-
-        SetMode(Mode.Min, playTransitions: false);
-        startToggle.On = true;
+        // Default to Start mode
+        SelectMode(Mode.Start, playTransitions: false);
 
         RefreshModelSettings();
         LoadPreferences();
     }
+
+    private void SetupModeRadio(LeanToggle toggle, Mode mode)
+    {
+        toggle.TurnOffSiblings = false;
+
+        // When turned ON → activate mode
+        toggle.OnOn.AddListener(() => SelectMode(mode));
+
+        // When turned OFF → if this was the active mode and it wasn’t code-driven, snap back ON
+        toggle.OnOff.AddListener(() =>
+        {
+            if (!isProgrammatic && currentMode == mode)
+            {
+                toggle.On = true;
+            }
+        });
+    }
+
+    private void SelectMode(Mode mode, bool playTransitions = true)
+    {
+        if (currentMode == mode && playTransitions)
+            return;
+
+        currentMode = mode;
+
+        // Turn ON the selected toggle
+        if (playTransitions)
+            GetToggle(mode).TurnOn();
+        else
+            GetToggle(mode).On = true;
+
+        // Turn OFF the others
+        isProgrammatic = true;
+        foreach (var other in new[] { minToggle, startToggle, maxToggle })
+        {
+            if (other != GetToggle(mode))
+                other.TurnOff();
+        }
+        isProgrammatic = false;
+
+        ApplyAllPartsWithMode();
+    }
+
+    private LeanToggle GetToggle(Mode mode) => mode switch
+    {
+        Mode.Min => minToggle,
+        Mode.Start => startToggle,
+        Mode.Max => maxToggle,
+        _ => startToggle
+    };
 
     public void ShowPanel()
     {
@@ -142,20 +190,6 @@ public class RobotArmPartPositionController : MonoBehaviour, IHideablePanel
         tempDirections[index] = isOn;
         SetInputHandlerDirection(index, isOn);
         ApplyRotation(index, sliders[index].value, 1);
-    }
-
-    private void SetMode(Mode mode, bool playTransitions = true)
-    {
-        currentMode = mode;
-
-        if (playTransitions)
-        {
-            if (mode == Mode.Min) { startToggle.TurnOff(); maxToggle.TurnOff(); }
-            if (mode == Mode.Start) { minToggle.TurnOff(); maxToggle.TurnOff(); }
-            if (mode == Mode.Max) { minToggle.TurnOff(); startToggle.TurnOff(); }
-        }
-
-        ApplyAllPartsWithMode();
     }
 
     private void ApplyAllPartsWithMode()

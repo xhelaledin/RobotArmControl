@@ -267,22 +267,48 @@ public class SliderValueConfig : MonoBehaviour, IHideablePanel
     }
 
     void HookDirectionRadios(SliderGroup group)
+{
+    if (group.directionOptions == null || group.directionOptions.Count == 0)
+        return;
+
+    for (int i = 0; i < group.directionOptions.Count; i++)
     {
-        if (group.directionOptions == null) return;
+        int idx = i;
 
-        for (int i = 0; i < group.directionOptions.Count; i++)
+        // Prevent LeanToggle from auto-handling siblings
+        group.directionOptions[idx].TurnOffSiblings = false;
+
+        // When ON → select this option
+        group.directionOptions[idx].OnOn.AddListener(() =>
         {
-            int idx = i;
-            group.directionOptions[i].OnOn.AddListener(() =>
-            {
-                if (isProgrammatic) return;
-                if (group.currentDirectionIndex == idx) return;
+            if (isProgrammatic) return;
+            if (group.currentDirectionIndex == idx) return;
 
-                group.currentDirectionIndex = idx;
-                SaveSliderGroup(group);
-            });
-        }
+            group.currentDirectionIndex = idx;
+
+            // Turn off all siblings manually
+            isProgrammatic = true;
+            for (int j = 0; j < group.directionOptions.Count; j++)
+            {
+                if (j != idx)
+                    group.directionOptions[j].TurnOff();
+            }
+            isProgrammatic = false;
+
+            SaveSliderGroup(group);
+        });
+
+        // When OFF → if this was the active one (and not programmatic), snap back ON
+        group.directionOptions[idx].OnOff.AddListener(() =>
+        {
+            if (!isProgrammatic && group.currentDirectionIndex == idx)
+            {
+                group.directionOptions[idx].On = true;
+            }
+        });
     }
+}
+
 
     void ClampAndUpdateStartValue(SliderGroup group)
     {
