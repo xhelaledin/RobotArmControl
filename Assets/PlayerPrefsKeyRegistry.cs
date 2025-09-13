@@ -47,8 +47,8 @@ public static class PlayerPrefsKeyRegistry
         { "Slider5_Max", (PrefType.Int, PrefCategory.SliderConfig) },
         { "Slider5_Start", (PrefType.Int, PrefCategory.SliderConfig) },
         { "Slider5_FlipDirection", (PrefType.Int, PrefCategory.SliderConfig) },
-        // { "OpenButtonValue", (PrefType.Int, PrefCategory.SliderConfig) },
-        // { "CloseButtonValue", (PrefType.Int, PrefCategory.SliderConfig) },
+        { "OpenButtonValue", (PrefType.Int, PrefCategory.SliderConfig) },
+        { "CloseButtonValue", (PrefType.Int, PrefCategory.SliderConfig) },
         { "SendContinuously", (PrefType.Int, PrefCategory.SliderConfig) },
         { "SendIntervalStep", (PrefType.Int, PrefCategory.SliderConfig) },
 
@@ -102,9 +102,7 @@ public static class PlayerPrefsKeyRegistry
         { "model6directionpart4", (PrefType.Int, PrefCategory.Model3DVisual) },
         { "model6directionpart5", (PrefType.Int, PrefCategory.Model3DVisual) },
 
-        // ======================
         // Bluetooth Logs
-        // ======================
         { "TerminalLog", (PrefType.String, PrefCategory.BluetoothLogs) },
         { "ExportedLogFilePath", (PrefType.String, PrefCategory.BluetoothLogs) },
         { "ImportedLogFilePath", (PrefType.String, PrefCategory.BluetoothLogs) }
