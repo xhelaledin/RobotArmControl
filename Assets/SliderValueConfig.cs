@@ -27,6 +27,7 @@ public class SliderGroup
     [HideInInspector] public string flipKey;
 
     [HideInInspector] public int currentDirectionIndex;
+    [HideInInspector] public bool isAccordionOpen; // runtime only
 }
 
 public class SliderValueConfig : MonoBehaviour, IHideablePanel
@@ -56,15 +57,17 @@ public class SliderValueConfig : MonoBehaviour, IHideablePanel
     public GameObject sendSettingsPanel;
     public TMP_InputField sendIntervalInput;
 
-    // Keys for PlayerPrefs
+    // Keys for PlayerPrefs (only for values, not accordion states)
     [HideInInspector] public string openKey;
     [HideInInspector] public string closeKey;
     private const string SendContinuouslyKey = "SendContinuously";
     private const string SendIntervalStepKey = "SendIntervalStep";
 
     private bool isProgrammatic;
-
     private int selectedModel;
+
+    // runtime-only state for buttons accordion
+    private bool isButtonsAccordionOpen;
 
     void Awake()
     {
@@ -75,24 +78,25 @@ public class SliderValueConfig : MonoBehaviour, IHideablePanel
             sliderGroups[i].maxKey = $"Slider{n}_Max";
             sliderGroups[i].startKey = $"Slider{n}_Start";
             sliderGroups[i].flipKey = $"Slider{n}_FlipDirection";
+            sliderGroups[i].isAccordionOpen = false; // default collapsed
         }
 
         openKey = "OpenButtonValue";
         closeKey = "CloseButtonValue";
-
     }
 
     void Start()
     {
         foreach (var group in sliderGroups)
         {
-            if (group.settingsPanel != null) group.settingsPanel.SetActive(false);
+            if (group.settingsPanel != null)
+                group.settingsPanel.SetActive(group.isAccordionOpen);
 
             if (group.mainButton != null)
             {
                 var img = group.mainButton.GetComponent<Image>();
                 if (img != null && group.spriteClosed != null)
-                    img.sprite = group.spriteClosed;
+                    img.sprite = group.isAccordionOpen ? group.spriteOpened : group.spriteClosed;
 
                 group.mainButton.onClick.AddListener(() => ToggleGroup(group));
             }
@@ -103,13 +107,13 @@ public class SliderValueConfig : MonoBehaviour, IHideablePanel
         }
 
         if (buttonsSettingsPanel != null)
-            buttonsSettingsPanel.SetActive(false);
+            buttonsSettingsPanel.SetActive(isButtonsAccordionOpen);
 
         if (buttonsHeaderButton != null)
         {
             var img = buttonsHeaderButton.GetComponent<Image>();
             if (img != null && buttonsSpriteClosed != null)
-                img.sprite = buttonsSpriteClosed;
+                img.sprite = isButtonsAccordionOpen ? buttonsSpriteOpened : buttonsSpriteClosed;
 
             buttonsHeaderButton.onClick.AddListener(ToggleButtonsAccordion);
         }
@@ -170,8 +174,11 @@ public class SliderValueConfig : MonoBehaviour, IHideablePanel
                 sliderGroups[i].mainButton.gameObject.SetActive(shouldShow);
 
             if (sliderGroups[i].settingsPanel != null)
-                sliderGroups[i].settingsPanel.SetActive(false); // Always start collapsed
+                sliderGroups[i].settingsPanel.SetActive(sliderGroups[i].isAccordionOpen && shouldShow);
         }
+
+        if (buttonsSettingsPanel != null)
+            buttonsSettingsPanel.SetActive(isButtonsAccordionOpen);
 
         PanelManager.Instance.RegisterPanel(this);
     }
@@ -181,6 +188,7 @@ public class SliderValueConfig : MonoBehaviour, IHideablePanel
         sliderConfigPanel.SetActive(false);
         sliderTextUpdater.RefreshAllFromPrefs();
     }
+
     public bool IsPanelActive()
     {
         return sliderConfigPanel.activeSelf;
@@ -190,13 +198,13 @@ public class SliderValueConfig : MonoBehaviour, IHideablePanel
     {
         if (group.settingsPanel == null || group.mainButton == null) return;
 
-        bool isActive = group.settingsPanel.activeSelf;
-        group.settingsPanel.SetActive(!isActive);
+        group.isAccordionOpen = !group.isAccordionOpen;
+        group.settingsPanel.SetActive(group.isAccordionOpen);
 
         var img = group.mainButton.GetComponent<Image>();
         if (img != null)
         {
-            img.sprite = !isActive ? group.spriteOpened : group.spriteClosed;
+            img.sprite = group.isAccordionOpen ? group.spriteOpened : group.spriteClosed;
         }
     }
 
@@ -204,13 +212,13 @@ public class SliderValueConfig : MonoBehaviour, IHideablePanel
     {
         if (buttonsSettingsPanel == null || buttonsHeaderButton == null) return;
 
-        bool isActive = buttonsSettingsPanel.activeSelf;
-        buttonsSettingsPanel.SetActive(!isActive);
+        isButtonsAccordionOpen = !isButtonsAccordionOpen;
+        buttonsSettingsPanel.SetActive(isButtonsAccordionOpen);
 
         var img = buttonsHeaderButton.GetComponent<Image>();
         if (img != null)
         {
-            img.sprite = !isActive ? buttonsSpriteOpened : buttonsSpriteClosed;
+            img.sprite = isButtonsAccordionOpen ? buttonsSpriteOpened : buttonsSpriteClosed;
         }
     }
 
@@ -228,7 +236,6 @@ public class SliderValueConfig : MonoBehaviour, IHideablePanel
         if (group.maxValueField != null)
             group.maxValueField.text = max.ToString();
 
-        // Clamp start value between min and max when loading
         start = Mathf.Clamp(start, min, max);
 
         if (group.startValueField != null)
@@ -267,48 +274,42 @@ public class SliderValueConfig : MonoBehaviour, IHideablePanel
     }
 
     void HookDirectionRadios(SliderGroup group)
-{
-    if (group.directionOptions == null || group.directionOptions.Count == 0)
-        return;
-
-    for (int i = 0; i < group.directionOptions.Count; i++)
     {
-        int idx = i;
+        if (group.directionOptions == null || group.directionOptions.Count == 0)
+            return;
 
-        // Prevent LeanToggle from auto-handling siblings
-        group.directionOptions[idx].TurnOffSiblings = false;
-
-        // When ON → select this option
-        group.directionOptions[idx].OnOn.AddListener(() =>
+        for (int i = 0; i < group.directionOptions.Count; i++)
         {
-            if (isProgrammatic) return;
-            if (group.currentDirectionIndex == idx) return;
+            int idx = i;
+            group.directionOptions[idx].TurnOffSiblings = false;
 
-            group.currentDirectionIndex = idx;
-
-            // Turn off all siblings manually
-            isProgrammatic = true;
-            for (int j = 0; j < group.directionOptions.Count; j++)
+            group.directionOptions[idx].OnOn.AddListener(() =>
             {
-                if (j != idx)
-                    group.directionOptions[j].TurnOff();
-            }
-            isProgrammatic = false;
+                if (isProgrammatic) return;
+                if (group.currentDirectionIndex == idx) return;
 
-            SaveSliderGroup(group);
-        });
+                group.currentDirectionIndex = idx;
 
-        // When OFF → if this was the active one (and not programmatic), snap back ON
-        group.directionOptions[idx].OnOff.AddListener(() =>
-        {
-            if (!isProgrammatic && group.currentDirectionIndex == idx)
+                isProgrammatic = true;
+                for (int j = 0; j < group.directionOptions.Count; j++)
+                {
+                    if (j != idx)
+                        group.directionOptions[j].TurnOff();
+                }
+                isProgrammatic = false;
+
+                SaveSliderGroup(group);
+            });
+
+            group.directionOptions[idx].OnOff.AddListener(() =>
             {
-                group.directionOptions[idx].On = true;
-            }
-        });
+                if (!isProgrammatic && group.currentDirectionIndex == idx)
+                {
+                    group.directionOptions[idx].On = true;
+                }
+            });
+        }
     }
-}
-
 
     void ClampAndUpdateStartValue(SliderGroup group)
     {
@@ -323,12 +324,10 @@ public class SliderValueConfig : MonoBehaviour, IHideablePanel
         if (!parsedMax) max = 180;
         if (!parsedStart) start = min;
 
-        // Clamp start value between min and max
         int clampedStart = Mathf.Clamp(start, min, max);
 
         if (clampedStart != start)
         {
-            // Update input field text to clamped value
             isProgrammatic = true;
             group.startValueField.text = clampedStart.ToString();
             isProgrammatic = false;
@@ -337,7 +336,6 @@ public class SliderValueConfig : MonoBehaviour, IHideablePanel
 
     void SaveSliderGroup(SliderGroup group)
     {
-        // Clamp start value first to make sure saved values are valid
         ClampAndUpdateStartValue(group);
 
         if (group.minValueField != null && int.TryParse(group.minValueField.text, out int min))
@@ -353,7 +351,6 @@ public class SliderValueConfig : MonoBehaviour, IHideablePanel
 
         PlayerPrefs.Save();
 
-        // Apply config to slider immediately
         int sliderIndex = sliderGroups.IndexOf(group);
         if (sliderIndex >= 0)
         {
