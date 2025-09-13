@@ -47,6 +47,8 @@ public class RobotArmSelection : MonoBehaviour
     // Track if slider was touched by user for continuous send
     private bool[] sliderTouched = new bool[5];
 
+    private bool openClawOnStart = false;
+
     private void Awake()
     {
         selectedModelIndex = PlayerPrefs.GetInt("SelectedModelIndex", 0);
@@ -406,16 +408,24 @@ public class RobotArmSelection : MonoBehaviour
         slider5.gameObject.SetActive(index == 3);
     }
 
+    public void OpenClawOnStart()
+    {
+        openClawOnStart = true;
+        OnOpenButtonPressed();
+        openClawOnStart = false;
+    }
+
     public void OnOpenButtonPressed()
     {
         bluetoothCommandConstructor.ConstructOpenCommand(openValue.ToString());
 
+        int outlineValue = openClawOnStart ? 0 : 1; 
         switch (selectedModelIndex)
         {
-            case 0: robotArmInputHandler4Parts.OpenClaw(1); break;
-            case 1: robotArmInputHandler5Parts.OpenClaw(1); break;
-            case 2: robotArmInputHandler5BParts.OpenClaw(1); break;
-            case 3: robotArmInputHandler6Parts.OpenClaw(1); break;
+            case 0: robotArmInputHandler4Parts.OpenClaw(outlineValue); break;
+            case 1: robotArmInputHandler5Parts.OpenClaw(outlineValue); break;
+            case 2: robotArmInputHandler5BParts.OpenClaw(outlineValue); break;
+            case 3: robotArmInputHandler6Parts.OpenClaw(outlineValue); break;
         }
 
         PlayerPrefs.SetInt("OpenButtonPressed", 1);
@@ -462,6 +472,8 @@ public class RobotArmSelection : MonoBehaviour
         OnSliderValueChanged(2, slider3Start, 0);
         OnSliderValueChanged(3, slider4Start, 0);
         OnSliderValueChanged(4, slider5Start, 0);
+
+        OpenClawOnStart();
     }
 
     public void MoveModelAfterStartPosEdit()
