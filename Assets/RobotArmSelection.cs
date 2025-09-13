@@ -412,10 +412,10 @@ public class RobotArmSelection : MonoBehaviour
 
         switch (selectedModelIndex)
         {
-            case 0: robotArmInputHandler4Parts.OpenClaw(); break;
-            case 1: robotArmInputHandler5Parts.OpenClaw(); break;
-            case 2: robotArmInputHandler5BParts.OpenClaw(); break;
-            case 3: robotArmInputHandler6Parts.OpenClaw(); break;
+            case 0: robotArmInputHandler4Parts.OpenClaw(1); break;
+            case 1: robotArmInputHandler5Parts.OpenClaw(1); break;
+            case 2: robotArmInputHandler5BParts.OpenClaw(1); break;
+            case 3: robotArmInputHandler6Parts.OpenClaw(1); break;
         }
 
         PlayerPrefs.SetInt("OpenButtonPressed", 1);
@@ -429,10 +429,10 @@ public class RobotArmSelection : MonoBehaviour
 
         switch (selectedModelIndex)
         {
-            case 0: robotArmInputHandler4Parts.CloseClaw(); break;
-            case 1: robotArmInputHandler5Parts.CloseClaw(); break;
-            case 2: robotArmInputHandler5BParts.CloseClaw(); break;
-            case 3: robotArmInputHandler6Parts.CloseClaw(); break;
+            case 0: robotArmInputHandler4Parts.CloseClaw(1); break;
+            case 1: robotArmInputHandler5Parts.CloseClaw(1); break;
+            case 2: robotArmInputHandler5BParts.CloseClaw(1); break;
+            case 3: robotArmInputHandler6Parts.CloseClaw(1); break;
         }
 
         PlayerPrefs.SetInt("OpenButtonPressed", 0);

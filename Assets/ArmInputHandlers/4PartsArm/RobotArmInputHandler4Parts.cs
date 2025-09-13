@@ -236,12 +236,15 @@ public class RobotArmInputHandler4Parts : MonoBehaviour
         part3.localEulerAngles = new Vector3(270f, 129.6f, 20 + adj);
     }
 
-    public void OpenClaw()
+    public void OpenClaw(int outlineIndex)
     {
-        TriggerOutline(outlinePart4A);
-        TriggerOutline(outlinePart4B);
-        TriggerOutline(outlinePart5A);
-        TriggerOutline(outlinePart5B);
+        if (outlineIndex == 1)
+        {
+            TriggerOutline(outlinePart4A);
+            TriggerOutline(outlinePart4B);
+            TriggerOutline(outlinePart5A);
+            TriggerOutline(outlinePart5B);
+        }
 
         part4A.localEulerAngles = new Vector3(270f, 170f, 300f);
         part5A.localEulerAngles = new Vector3(90f, 190f, 62f);
@@ -249,12 +252,15 @@ public class RobotArmInputHandler4Parts : MonoBehaviour
         part5B.localEulerAngles = new Vector3(270f, 198f, 222f);
     }
 
-    public void CloseClaw()
+    public void CloseClaw(int outlineIndex)
     {
-        TriggerOutline(outlinePart4A);
-        TriggerOutline(outlinePart4B);
-        TriggerOutline(outlinePart5A);
-        TriggerOutline(outlinePart5B);
+        if (outlineIndex == 1)
+        {
+            TriggerOutline(outlinePart4A);
+            TriggerOutline(outlinePart4B);
+            TriggerOutline(outlinePart5A);
+            TriggerOutline(outlinePart5B);
+        }
 
         part4A.localEulerAngles = new Vector3(270f, 170f, 275f);
         part5A.localEulerAngles = new Vector3(90f, 190f, 50f);
@@ -269,8 +275,8 @@ public class RobotArmInputHandler4Parts : MonoBehaviour
         setPart3Rotation(saveValues[2], 0);
 
         if (saveValues.Length > 3 && saveValues[3] == 1)
-            CloseClaw();
+            CloseClaw(0);
         else
-            OpenClaw();
+            OpenClaw(0);
     }
 }
