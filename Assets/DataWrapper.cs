@@ -19,7 +19,7 @@ public class Entry
 {
     public string key;
     public string value;
-    public string type;     // "Int" or "String"
+    public string type;     // "Int", "Float", "String"
     public string category; // "SliderConfig", etc.
 
     public Entry(string key, string value, string type, string category)
@@ -45,5 +45,6 @@ public enum PrefCategory
     BluetoothCommandConstruct,
     Encryption,
     SliderConfig,
-    Model3DVisual
+    Model3DVisual,
+    BluetoothLogs   // ✅ NEW CATEGORY
 }

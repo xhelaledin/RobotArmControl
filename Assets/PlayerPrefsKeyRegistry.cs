@@ -16,8 +16,6 @@ public static class PlayerPrefsKeyRegistry
         { "Close_Command", (PrefType.String, PrefCategory.BluetoothCommandConstruct) },
         { "Command_Delimiter", (PrefType.String, PrefCategory.BluetoothCommandConstruct) },
         { "List_Delimiter", (PrefType.String, PrefCategory.BluetoothCommandConstruct) },
-        // { "OpenButtonValue", (PrefType.Int, PrefCategory.BluetoothCommandConstruct) },
-        // { "CloseButtonValue", (PrefType.Int, PrefCategory.BluetoothCommandConstruct) },
         { "SingleModeToggle", (PrefType.Int, PrefCategory.BluetoothCommandConstruct) },
 
         // Encryption
@@ -49,8 +47,8 @@ public static class PlayerPrefsKeyRegistry
         { "Slider5_Max", (PrefType.Int, PrefCategory.SliderConfig) },
         { "Slider5_Start", (PrefType.Int, PrefCategory.SliderConfig) },
         { "Slider5_FlipDirection", (PrefType.Int, PrefCategory.SliderConfig) },
-        { "OpenButtonValue", (PrefType.Int, PrefCategory.SliderConfig) },
-        { "CloseButtonValue", (PrefType.Int, PrefCategory.SliderConfig) },
+        // { "OpenButtonValue", (PrefType.Int, PrefCategory.SliderConfig) },
+        // { "CloseButtonValue", (PrefType.Int, PrefCategory.SliderConfig) },
         { "SendContinuously", (PrefType.Int, PrefCategory.SliderConfig) },
         { "SendIntervalStep", (PrefType.Int, PrefCategory.SliderConfig) },
 
@@ -102,7 +100,14 @@ public static class PlayerPrefsKeyRegistry
         { "model6directionpart2", (PrefType.Int, PrefCategory.Model3DVisual) },
         { "model6directionpart3", (PrefType.Int, PrefCategory.Model3DVisual) },
         { "model6directionpart4", (PrefType.Int, PrefCategory.Model3DVisual) },
-        { "model6directionpart5", (PrefType.Int, PrefCategory.Model3DVisual) }
+        { "model6directionpart5", (PrefType.Int, PrefCategory.Model3DVisual) },
+
+        // ======================
+        // Bluetooth Logs
+        // ======================
+        { "TerminalLog", (PrefType.String, PrefCategory.BluetoothLogs) },
+        { "ExportedLogFilePath", (PrefType.String, PrefCategory.BluetoothLogs) },
+        { "ImportedLogFilePath", (PrefType.String, PrefCategory.BluetoothLogs) }
     };
 
     public static IEnumerable<string> Keys => KeyTypes.Keys;
