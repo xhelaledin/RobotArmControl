@@ -114,7 +114,17 @@ public class RobotArmInputHandler5Parts : MonoBehaviour
     }
 
     // -------------------------
-    // Rotation methods
+    // Rotation helpers
+    // -------------------------
+
+    private float AdjustedAngle(float rotation, float offset, bool reversed)
+    {
+        float angle = reversed ? offset + (360f - rotation) : offset + rotation;
+        return angle % 360f;
+    }
+
+    // -------------------------
+    // Start rotations
     // -------------------------
 
     public void LoadStartRotationsFromPrefs()
@@ -136,113 +146,90 @@ public class RobotArmInputHandler5Parts : MonoBehaviour
             directions[partIndex] = isPositive;
     }
 
-    // Base (“start”) setters
     public void setPart1StartRotation(float zRotation, int outlineIndex)
     {
         if (outlineIndex == 1) TriggerOutline(outlinePart1);
-
         part1StartRotation = zRotation;
-        float adj = directions[0] ? zRotation : -zRotation;
-        part1.localEulerAngles = new Vector3(180f, 0f, 270 + adj);
+        part1.localEulerAngles = new Vector3(180f, 0f, AdjustedAngle(0f, 95f, directions[0]));
     }
 
     public void setPart2StartRotation(float zRotation, int outlineIndex)
     {
         if (outlineIndex == 1) TriggerOutline(outlinePart2);
-
         part2StartRotation = zRotation;
-        float adj = directions[1] ? zRotation : -zRotation;
-        part2.localEulerAngles = new Vector3(270f, 0.185f, 105 + adj);
+        part2.localEulerAngles = new Vector3(270f, 0.185f, AdjustedAngle(0f, 290f, directions[1]));
     }
 
     public void setPart3StartRotation(float zRotation, int outlineIndex)
     {
         if (outlineIndex == 1) TriggerOutline(outlinePart3);
-
         part3StartRotation = zRotation;
-        float adj = directions[2] ? zRotation : -zRotation;
-        part3.localEulerAngles = new Vector3(270f, 129.6f, 250 + adj);
+        part3.localEulerAngles = new Vector3(270f, 129.6f, AdjustedAngle(0f, 60f, directions[2]));
     }
 
     public void setPart4StartRotation(float zRotation, int outlineIndex)
     {
         if (outlineIndex == 1) TriggerOutline(outlinePart4);
-
         part4StartRotation = zRotation;
-        float adj = directions[3] ? zRotation : -zRotation;
-        part4.localEulerAngles = new Vector3(270f, 129.6f, 320 + adj);
+        part4.localEulerAngles = new Vector3(270f, 129.6f, AdjustedAngle(0f, 170f, directions[3]));
     }
 
-    // Live (“delta”) rotators
+    // -------------------------
+    // Live rotations
+    // -------------------------
+
     public void setPart1Rotation(float delta, int outlineIndex)
     {
         if (outlineIndex == 1) TriggerOutline(outlinePart1);
-
-        float adj = directions[0] ? delta : -delta;
-        float angle = adj + part1StartRotation;
-        part1.localEulerAngles = new Vector3(180f, 0f, 270 + angle);
+        part1.localEulerAngles = new Vector3(180f, 0f, AdjustedAngle(delta + part1StartRotation, 95f, directions[0]));
     }
 
     public void setPart2Rotation(float delta, int outlineIndex)
     {
         if (outlineIndex == 1) TriggerOutline(outlinePart2);
-
-        float adj = directions[1] ? delta : -delta;
-        float angle = adj + part2StartRotation;
-        part2.localEulerAngles = new Vector3(270f, 0.185f, 105 + angle);
+        part2.localEulerAngles = new Vector3(270f, 0.185f, AdjustedAngle(delta + part2StartRotation, 290f, directions[1]));
     }
 
     public void setPart3Rotation(float delta, int outlineIndex)
     {
         if (outlineIndex == 1) TriggerOutline(outlinePart3);
-
-        float adj = directions[2] ? delta : -delta;
-        float angle = adj + part3StartRotation;
-        part3.localEulerAngles = new Vector3(270f, 129.6f, 250 + angle);
+        part3.localEulerAngles = new Vector3(270f, 129.6f, AdjustedAngle(delta + part3StartRotation, 60f, directions[2]));
     }
 
     public void setPart4Rotation(float delta, int outlineIndex)
     {
         if (outlineIndex == 1) TriggerOutline(outlinePart4);
-
-        float adj = directions[3] ? delta : -delta;
-        float angle = adj + part4StartRotation;
-        part4.localEulerAngles = new Vector3(270f, 129.6f, 320 + angle);
+        part4.localEulerAngles = new Vector3(270f, 129.6f, AdjustedAngle(delta + part4StartRotation, 170f, directions[3]));
     }
 
     public void setPart1RotationVisual(float delta, int outlineIndex)
     {
         if (outlineIndex == 1) TriggerOutline(outlinePart1);
-
-        float adj = directions[0] ? delta : -delta;
-        part1.localEulerAngles = new Vector3(180f, 0f, 270 + adj);
+        part1.localEulerAngles = new Vector3(180f, 0f, AdjustedAngle(delta, 95f, directions[0]));
     }
 
     public void setPart2RotationVisual(float delta, int outlineIndex)
     {
         if (outlineIndex == 1) TriggerOutline(outlinePart2);
-
-        float adj = directions[1] ? delta : -delta;
-        part2.localEulerAngles = new Vector3(270f, 0.185f, 105 + adj);
+        part2.localEulerAngles = new Vector3(270f, 0.185f, AdjustedAngle(delta, 290f, directions[1]));
     }
 
     public void setPart3RotationVisual(float delta, int outlineIndex)
     {
         if (outlineIndex == 1) TriggerOutline(outlinePart3);
-
-        float adj = directions[2] ? delta : -delta;
-        part3.localEulerAngles = new Vector3(270f, 129.6f, 250 + adj);
+        part3.localEulerAngles = new Vector3(270f, 129.6f, AdjustedAngle(delta, 60f, directions[2]));
     }
 
     public void setPart4RotationVisual(float delta, int outlineIndex)
     {
         if (outlineIndex == 1) TriggerOutline(outlinePart4);
-
-        float adj = directions[3] ? delta : -delta;
-        part4.localEulerAngles = new Vector3(270f, 129.6f, 320 + adj);
+        part4.localEulerAngles = new Vector3(270f, 129.6f, AdjustedAngle(delta, 170f, directions[3]));
     }
 
-    // Claw
+    // -------------------------
+    // Claw logic
+    // -------------------------
+
     public void OpenClaw(int outlineIndex)
     {
         if (outlineIndex == 1)
@@ -253,10 +240,10 @@ public class RobotArmInputHandler5Parts : MonoBehaviour
             TriggerOutline(outlinePart6B);
         }
 
-        part5A.localEulerAngles = new Vector3(270f, 170f, 300f);
-        part6A.localEulerAngles = new Vector3(90f, 190f, 62f);
-        part5B.localEulerAngles = new Vector3(270f, 198f, 300f);
-        part6B.localEulerAngles = new Vector3(270f, 198f, 222f);
+        part5A.localEulerAngles = new Vector3(270f, 170f, AdjustedAngle(0f, 300f, true));
+        part6A.localEulerAngles = new Vector3(90f, 190f, AdjustedAngle(0f, 62f, true));
+        part5B.localEulerAngles = new Vector3(270f, 198f, AdjustedAngle(0f, 300f, true));
+        part6B.localEulerAngles = new Vector3(270f, 198f, AdjustedAngle(0f, 222f, true));
     }
 
     public void CloseClaw(int outlineIndex)
@@ -269,10 +256,10 @@ public class RobotArmInputHandler5Parts : MonoBehaviour
             TriggerOutline(outlinePart6B);
         }
 
-        part5A.localEulerAngles = new Vector3(270f, 170f, 275f);
-        part6A.localEulerAngles = new Vector3(90f, 190f, 50f);
-        part5B.localEulerAngles = new Vector3(270f, 198f, 355f);
-        part6B.localEulerAngles = new Vector3(270f, 198f, 192f);
+        part5A.localEulerAngles = new Vector3(270f, 170f, AdjustedAngle(0f, 275f, true));
+        part6A.localEulerAngles = new Vector3(90f, 190f, AdjustedAngle(0f, 50f, true));
+        part5B.localEulerAngles = new Vector3(270f, 198f, AdjustedAngle(0f, 355f, true));
+        part6B.localEulerAngles = new Vector3(270f, 198f, AdjustedAngle(0f, 192f, true));
     }
 
     public void ApplySavedValues(int[] saveValues)
