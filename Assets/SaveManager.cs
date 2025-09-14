@@ -79,7 +79,6 @@ public class SaveManager : MonoBehaviour, IHideablePanel
             importAllButton.onClick.AddListener(ImportAllSavesFromFile);
 
         selectedModelIndex = PlayerPrefs.GetInt("SelectedModelIndex", 0);
-        // Debug.Log("Selected Model Index: " + selectedModelIndex);
 
         if (popupSaveButton != null)
             popupSaveButton.onClick.AddListener(StartSavingProcess);
@@ -204,7 +203,6 @@ public class SaveManager : MonoBehaviour, IHideablePanel
     public void UpdateSelectedModelIndex(int newIndex)
     {
         selectedModelIndex = newIndex;
-        // Debug.Log("Selected Model Index Updated in SaveManager: " + selectedModelIndex);
     }
 
     public void Toast(string message)
@@ -332,7 +330,6 @@ public class SaveManager : MonoBehaviour, IHideablePanel
                 return;
             }
 
-            // Optional: Clear all existing saves for models 0-3 before import
             ClearAllModelsSaves();
 
             foreach (var modelSaveWrapper in allModelsWrapper.allModelsSaves)
@@ -353,7 +350,6 @@ public class SaveManager : MonoBehaviour, IHideablePanel
                     importedNames.Add(entry.saveName);
                 }
 
-                // Update saved names list for this model index
                 PlayerPrefs.SetString(GetSaveListKey(modelIndex), string.Join(",", importedNames));
             }
 

@@ -11,7 +11,8 @@ public class SaveItemManager : MonoBehaviour
 
     public Button deleteButton;
     public Button runButton;
-    public Button saveButton;  // This is actually "view" button
+    public Button saveButton;   // This is actually "view" button
+    public Button addToListButton; // ✅ New button
 
     public Sprite runNormalSprite;
     public Sprite runSelectedSprite;
@@ -42,11 +43,18 @@ public class SaveItemManager : MonoBehaviour
         SetViewButtonNormal();
     }
 
-    public void SetupButtons(string saveName, System.Action<string, GameObject> deleteAction, System.Action<string, Button> runAction, System.Action<string, Button> viewAction)
+    public void SetupButtons(
+        string saveName,
+        System.Action<string, GameObject> deleteAction,
+        System.Action<string, Button> runAction,
+        System.Action<string, Button> viewAction,
+        System.Action<string> addToListAction  // ✅ New action
+    )
     {
         deleteButton.onClick.AddListener(() => deleteAction.Invoke(saveName, this.gameObject));
         runButton.onClick.AddListener(() => runAction.Invoke(saveName, runButton));
         saveButton.onClick.AddListener(() => viewAction.Invoke(saveName, saveButton));
+        addToListButton.onClick.AddListener(() => addToListAction.Invoke(saveName)); // ✅
     }
 
     // Methods to update button sprites externally
