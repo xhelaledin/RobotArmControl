@@ -1,7 +1,7 @@
-using UnityEngine;
-using UnityEngine.UI;
 using TMPro;
+using UnityEngine.UI;
 using System.Collections.Generic;
+using UnityEngine;
 
 public class AddToListPanelManager : MonoBehaviour
 {
@@ -28,7 +28,6 @@ public class AddToListPanelManager : MonoBehaviour
 
     private void Awake()
     {
-        // Use new Unity API instead of deprecated FindObjectOfType
         if (saveListManager == null)
         {
             saveListManager = FindFirstObjectByType<SaveListManager>();
@@ -36,7 +35,6 @@ public class AddToListPanelManager : MonoBehaviour
                 Debug.LogError("AddToListPanelManager: No SaveListManager found in scene!");
         }
 
-        // Hook buttons
         if (closeButton != null)
             closeButton.onClick.AddListener(() => panel.SetActive(false));
         if (createNewButton != null)
@@ -46,7 +44,6 @@ public class AddToListPanelManager : MonoBehaviour
         if (renameConfirmButton != null)
             renameConfirmButton.onClick.AddListener(ConfirmCreateNewList);
 
-        // Start panels inactive
         if (panel != null) panel.SetActive(false);
         if (renamePopup != null) renamePopup.SetActive(false);
     }
@@ -56,12 +53,6 @@ public class AddToListPanelManager : MonoBehaviour
     /// </summary>
     public void Open(string saveName)
     {
-        if (saveListManager == null)
-        {
-            Debug.LogError("AddToListPanelManager: SaveListManager not initialized!");
-            return;
-        }
-
         saveToAdd = saveName;
         panel.SetActive(true);
         RefreshList();
@@ -75,7 +66,7 @@ public class AddToListPanelManager : MonoBehaviour
         foreach (Transform child in listContent)
             Destroy(child.gameObject);
 
-        Dictionary<string, SaveListData> lists = saveListManager.GetAllLists();
+        Dictionary<string, SaveListData> lists = saveListManager.GetAllListsForCurrentModel();
         if (lists == null) return;
 
         foreach (var kvp in lists)
@@ -84,7 +75,7 @@ public class AddToListPanelManager : MonoBehaviour
             AddToListItemManager manager = item.GetComponent<AddToListItemManager>();
             manager.SetData(kvp.Key, () =>
             {
-                // ✅ Add same save multiple times
+                // Add same save multiple times (explicitly allowed here)
                 saveListManager.AddSaveToList(saveToAdd, kvp.Key, allowDuplicates: true);
                 panel.SetActive(false);
             });
@@ -112,12 +103,12 @@ public class AddToListPanelManager : MonoBehaviour
             isDefault = true;
         }
 
-        HashSet<string> existingLists = new HashSet<string>(saveListManager.GetAllLists().Keys);
+        HashSet<string> existingLists = new HashSet<string>(saveListManager.GetAllListsForCurrentModel().Keys);
         string listName = GenerateUniqueName(baseName, existingLists, isDefault);
 
         saveListManager.CreateList(listName);
 
-        // ✅ Allow same save multiple times
+        // Allow same save multiple times
         saveListManager.AddSaveToList(saveToAdd, listName, allowDuplicates: true);
 
         renamePopup.SetActive(false);
@@ -125,35 +116,35 @@ public class AddToListPanelManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Appends a number to the name if it already exists in the collection
-    /// Default names start with 1
+    /// Appends a number to the name if it already exists in the collection.
+    /// Default names produce "Base 1", "Base 2", ...
+    /// Non-default names produce "Base", "Base (1)", "Base (2)", ...
+    /// This function guarantees the returned name is not in existingNames.
     /// </summary>
     private string GenerateUniqueName(string baseName, HashSet<string> existingNames, bool isDefaultName)
     {
-        if (!existingNames.Contains(baseName))
+        if (!isDefaultName)
         {
-            if (isDefaultName) return $"{baseName} 1";
-            return baseName;
-        }
+            if (!existingNames.Contains(baseName))
+                return baseName;
 
-        if (isDefaultName)
-        {
             int suffix = 1;
             string newName;
             do
             {
-                newName = $"{baseName} {suffix}";
+                newName = $"{baseName} ({suffix})";
                 suffix++;
             } while (existingNames.Contains(newName));
             return newName;
         }
         else
         {
+            // For default names, always use "Base 1", "Base 2", ...
             int suffix = 1;
             string newName;
             do
             {
-                newName = $"{baseName} ({suffix})";
+                newName = $"{baseName} {suffix}";
                 suffix++;
             } while (existingNames.Contains(newName));
             return newName;

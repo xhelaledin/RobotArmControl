@@ -39,7 +39,6 @@ public class SaveListItemManager : MonoBehaviour
         viewButton.onClick.RemoveAllListeners();
         deleteButton.onClick.RemoveAllListeners();
 
-        // Run sequentially: applies and sends each save one by one
         runButton.onClick.AddListener(() => onRun?.Invoke(currentListName));
         viewButton.onClick.AddListener(() => onView?.Invoke(currentListName));
         deleteButton.onClick.AddListener(() => onDelete?.Invoke(currentListName));

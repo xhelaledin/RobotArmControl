@@ -46,6 +46,19 @@ public class AllModelsSaveData
     }
 }
 
+[Serializable]
+public class CombinedExportData
+{
+    public AllModelsSaveData allModelsSaves;
+    public GroupedSerializableDictionary allSaveLists;
+
+    public CombinedExportData(AllModelsSaveData saves, GroupedSerializableDictionary lists)
+    {
+        this.allModelsSaves = saves;
+        this.allSaveLists = lists;
+    }
+}
+
 public class SaveManager : MonoBehaviour, IHideablePanel
 {
     public GameObject popupPanel;
@@ -237,7 +250,6 @@ public class SaveManager : MonoBehaviour, IHideablePanel
     }
 
     // ----------- EXPORT ALL ------------
-
     public void ExportAllSavesToFile()
     {
 #if UNITY_ANDROID || UNITY_IOS
@@ -277,14 +289,28 @@ public class SaveManager : MonoBehaviour, IHideablePanel
             allModelsSaveData.Add(new SaveDataWrapper(modelIndex, entries));
         }
 
-        if (allModelsSaveData.All(wrapper => wrapper.entries.Count == 0))
+        // Get grouped lists (if present)
+        var saveListManager = FindFirstObjectByType<SaveListManager>();
+        Dictionary<int, Dictionary<string, SaveListData>> groupedLists = new Dictionary<int, Dictionary<string, SaveListData>>();
+        if (saveListManager != null)
+            groupedLists = saveListManager.GetGroupedLists();
+
+        bool hasAnySaves = allModelsSaveData.Any(w => w.entries.Count > 0);
+        bool hasAnyLists = groupedLists.Any(kv => kv.Value != null && kv.Value.Count > 0);
+
+        if (!hasAnySaves && !hasAnyLists)
         {
-            Toast("No saves to export.");
+            Toast("No saves or lists to export.");
             return;
         }
 
-        string json = JsonUtility.ToJson(new AllModelsSaveData(allModelsSaveData), true);
-        string path = Path.Combine(Application.persistentDataPath, $"AllModelsSaves_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.json");
+        var allModelsWrapper = new AllModelsSaveData(allModelsSaveData);
+        var groupedWrapper = new GroupedSerializableDictionary(groupedLists);
+
+        var combined = new CombinedExportData(allModelsWrapper, groupedWrapper);
+
+        string json = JsonUtility.ToJson(combined, true);
+        string path = Path.Combine(Application.persistentDataPath, $"AllData_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.json");
 
         File.WriteAllText(path, json);
         Debug.Log($"Export saved to: {path}");
@@ -299,7 +325,6 @@ public class SaveManager : MonoBehaviour, IHideablePanel
     }
 
     // ----------- IMPORT ALL ------------
-
     public void ImportAllSavesFromFile()
     {
 #if UNITY_ANDROID || UNITY_IOS
@@ -322,46 +347,64 @@ public class SaveManager : MonoBehaviour, IHideablePanel
         try
         {
             string json = File.ReadAllText(path);
-            AllModelsSaveData allModelsWrapper = JsonUtility.FromJson<AllModelsSaveData>(json);
+            CombinedExportData imported = JsonUtility.FromJson<CombinedExportData>(json);
 
-            if (allModelsWrapper?.allModelsSaves == null || allModelsWrapper.allModelsSaves.Count == 0)
+            if (imported == null)
             {
-                Toast("Imported file has no valid save data.");
+                Toast("Imported file has no valid data.");
                 return;
             }
 
+            // First clear existing saves
             ClearAllModelsSaves();
 
-            foreach (var modelSaveWrapper in allModelsWrapper.allModelsSaves)
+            // Import saves
+            if (imported.allModelsSaves?.allModelsSaves != null)
             {
-                int modelIndex = modelSaveWrapper.modelIndex;
-                if (modelSaveWrapper.entries == null) continue;
-
-                var importedNames = new HashSet<string>();
-
-                foreach (var entry in modelSaveWrapper.entries)
+                foreach (var modelSaveWrapper in imported.allModelsSaves.allModelsSaves)
                 {
-                    if (entry.saveName == null || entry.values == null) continue;
+                    int modelIndex = modelSaveWrapper.modelIndex;
+                    if (modelSaveWrapper.entries == null) continue;
 
-                    string valuesStr = string.Join(",", entry.values);
-                    string saveString = $"{entry.saveName}:{valuesStr};{entry.dateString}";
+                    var importedNames = new HashSet<string>();
 
-                    PlayerPrefs.SetString(GetSaveKey(modelIndex, entry.saveName), saveString);
-                    importedNames.Add(entry.saveName);
+                    foreach (var entry in modelSaveWrapper.entries)
+                    {
+                        if (entry.saveName == null || entry.values == null) continue;
+
+                        string valuesStr = string.Join(",", entry.values);
+                        string saveString = $"{entry.saveName}:{valuesStr};{entry.dateString}";
+
+                        PlayerPrefs.SetString(GetSaveKey(modelIndex, entry.saveName), saveString);
+                        importedNames.Add(entry.saveName);
+                    }
+
+                    PlayerPrefs.SetString(GetSaveListKey(modelIndex), string.Join(",", importedNames));
                 }
+            }
 
-                PlayerPrefs.SetString(GetSaveListKey(modelIndex), string.Join(",", importedNames));
+            // Import lists (grouped)
+            if (imported.allSaveLists != null)
+            {
+                // Store the grouped lists JSON in PlayerPrefs under the same key SaveListManager expects
+                string listsJson = JsonUtility.ToJson(imported.allSaveLists);
+                PlayerPrefs.SetString("SaveListsGrouped", listsJson);
             }
 
             PlayerPrefs.Save();
 
-            Toast($"Imported saves for {allModelsWrapper.allModelsSaves.Count} models.");
-            Debug.Log($"Imported all saves from file: {path}");
+            // Notify SaveListManager to reload from PlayerPrefs
+            var saveListManager = FindFirstObjectByType<SaveListManager>();
+            if (saveListManager != null)
+                saveListManager.LoadFromPlayerPrefs();
+
+            Toast("Imported data successfully.");
+            Debug.Log($"Imported all saves & lists from file: {path}");
         }
         catch (Exception e)
         {
-            Debug.LogError($"Failed to import saves: {e.Message}");
-            Toast("Failed to import saves.");
+            Debug.LogError($"Failed to import saves/lists: {e.Message}");
+            Toast("Failed to import data.");
         }
     }
 
@@ -376,6 +419,9 @@ public class SaveManager : MonoBehaviour, IHideablePanel
             }
             PlayerPrefs.SetString(GetSaveListKey(modelIndex), "");
         }
+
+        // also clear grouped lists key so import starts clean
+        PlayerPrefs.SetString("SaveListsGrouped", "");
         PlayerPrefs.Save();
     }
 }

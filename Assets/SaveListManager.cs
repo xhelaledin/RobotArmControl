@@ -5,28 +5,25 @@ using System.Collections.Generic;
 using System.Linq;
 using System;
 
-[Serializable]
-public class SaveListData
-{
-    public List<string> saves = new List<string>();
-    public string createdDate;
-}
-
 public class SaveListManager : MonoBehaviour
 {
     [Header("UI References")]
-    public GameObject saveItemPrefab;       // Prefab for individual saves (SaveItemManager)
-    public Transform listContent;           // Scroll content
-    public GameObject listPanel;            // The SavedListsPanel root
+    public GameObject saveItemPrefab;
+    public Transform listContent;
+    public GameObject listPanel;
     public Button closePanelButton;
 
     [Header("Dependencies")]
-    public ListManager listManager;         // Reference to existing ListManager
+    public ListManager listManager;
 
-    private Dictionary<string, SaveListData> saveLists = new Dictionary<string, SaveListData>();
+    private Dictionary<int, Dictionary<string, SaveListData>> saveListsGrouped = new();
+    private int currentModelIndex;
+    private const string SaveListsGroupedKey = "SaveListsGrouped";
 
     private void Start()
     {
+        currentModelIndex = PlayerPrefs.GetInt("SelectedModelIndex", 0);
+
         if (closePanelButton != null)
             closePanelButton.onClick.AddListener(() => listPanel.SetActive(false));
 
@@ -36,22 +33,42 @@ public class SaveListManager : MonoBehaviour
 
     private void LoadLists()
     {
-        string raw = PlayerPrefs.GetString("SaveLists", "");
+        string raw = PlayerPrefs.GetString(SaveListsGroupedKey, "");
         if (!string.IsNullOrEmpty(raw))
         {
-            saveLists = JsonUtilityWrapper.FromJson<SerializableDictionary>(raw).ToDictionary();
+            try
+            {
+                var grouped = JsonUtilityWrapper.FromJsonGrouped(raw)?.ToGroupedDictionary();
+                if (grouped != null)
+                    saveListsGrouped = grouped;
+            }
+            catch
+            {
+                saveListsGrouped = new();
+            }
         }
+
+        for (int i = 0; i <= 3; i++)
+            if (!saveListsGrouped.ContainsKey(i))
+                saveListsGrouped[i] = new();
     }
 
     private void SaveLists()
     {
-        string json = JsonUtilityWrapper.ToJson(new SerializableDictionary(saveLists));
-        PlayerPrefs.SetString("SaveLists", json);
+        string json = JsonUtilityWrapper.ToJson(new GroupedSerializableDictionary(saveListsGrouped));
+        PlayerPrefs.SetString(SaveListsGroupedKey, json);
         PlayerPrefs.Save();
+    }
+
+    public void LoadFromPlayerPrefs()
+    {
+        LoadLists();
+        RefreshUI();
     }
 
     public void ShowPanel()
     {
+        currentModelIndex = PlayerPrefs.GetInt("SelectedModelIndex", 0);
         listPanel.SetActive(true);
         RefreshUI();
     }
@@ -61,61 +78,54 @@ public class SaveListManager : MonoBehaviour
         foreach (Transform child in listContent)
             Destroy(child.gameObject);
 
-        foreach (var kvp in saveLists)
+        currentModelIndex = PlayerPrefs.GetInt("SelectedModelIndex", 0);
+        var activeLists = saveListsGrouped[currentModelIndex];
+
+        foreach (var kvp in activeLists)
         {
             GameObject item = Instantiate(saveItemPrefab, listContent);
             SaveListItemManager manager = item.GetComponent<SaveListItemManager>();
 
-            string listName = kvp.Key;
-
-            // Wrap the method in a lambda to match Action<string>
             manager.SetData(
-                listName,
+                kvp.Key,
                 kvp.Value,
-                (name) => RunListSequentially(name, 1f, true),   // run
-                (name) => RunListSequentially(name, 1f, false),  // view
+                (name) => RunListSequentially(name, 1f, true),
+                (name) => RunListSequentially(name, 1f, false),
                 DeleteList,
                 listManager
             );
         }
     }
 
-
-    /// <summary>
-    /// Run or view saves of a specific list sequentially, with delay
-    /// </summary>
     public void RunListSequentially(string listName, float delay = 1f, bool runCommand = true)
     {
-        if (!saveLists.ContainsKey(listName)) return;
+        currentModelIndex = PlayerPrefs.GetInt("SelectedModelIndex", 0);
+        if (!saveListsGrouped[currentModelIndex].ContainsKey(listName)) return;
         StartCoroutine(RunSavesCoroutine(listName, delay, runCommand));
     }
 
     private IEnumerator RunSavesCoroutine(string listName, float delay, bool runCommand)
     {
-        var saves = saveLists[listName].saves;
-        Debug.Log($"[RunSavesCoroutine] Running {saves.Count} saves for list '{listName}'");
+        currentModelIndex = PlayerPrefs.GetInt("SelectedModelIndex", 0);
+        var saves = saveListsGrouped[currentModelIndex][listName].saves;
 
-        foreach (string saveName in saves)
+        foreach (var save in saves)
         {
-            Debug.Log($"[RunSavesCoroutine] Applying save: {saveName}");
-
-            int[] values = listManager.LoadSaveExternal(saveName);
-            listManager.ApplySavedValuesExternal(values, runCommand);
-
-            // Wait before applying the next save
+            listManager.ApplySavedValuesExternal(save.values.ToArray(), runCommand);
             yield return new WaitForSeconds(delay);
         }
-
-        Debug.Log("[RunSavesCoroutine] Finished running all saves");
     }
 
     public void CreateList(string listName)
     {
-        if (!saveLists.ContainsKey(listName))
+        currentModelIndex = PlayerPrefs.GetInt("SelectedModelIndex", 0);
+        var activeLists = saveListsGrouped[currentModelIndex];
+
+        if (!activeLists.ContainsKey(listName))
         {
-            saveLists[listName] = new SaveListData()
+            activeLists[listName] = new SaveListData
             {
-                saves = new List<string>(),
+                saves = new(),
                 createdDate = DateTime.Now.ToString("yyyy-MM-dd HH:mm")
             };
             SaveLists();
@@ -125,29 +135,64 @@ public class SaveListManager : MonoBehaviour
 
     public void AddSaveToList(string saveName, string listName, bool allowDuplicates = false)
     {
-        if (!saveLists.ContainsKey(listName))
+        currentModelIndex = PlayerPrefs.GetInt("SelectedModelIndex", 0);
+        var activeLists = saveListsGrouped[currentModelIndex];
+
+        if (!activeLists.ContainsKey(listName))
             CreateList(listName);
 
-        if (allowDuplicates || !saveLists[listName].saves.Contains(saveName))
+        // fetch from PlayerPrefs
+        string saveKey = $"SavedArray_{currentModelIndex}_{saveName}";
+        string raw = PlayerPrefs.GetString(saveKey, null);
+        if (string.IsNullOrEmpty(raw)) return;
+
+        int colonIndex = raw.IndexOf(':');
+        int semicolonIndex = raw.IndexOf(';');
+        if (colonIndex < 0 || semicolonIndex < 0) return;
+
+        string valuesStr = raw[(colonIndex + 1)..semicolonIndex];
+        string dateStr = raw[(semicolonIndex + 1)..];
+        var values = valuesStr.Split(',').Select(int.Parse).ToList();
+
+        if (!allowDuplicates && activeLists[listName].saves.Any(s => s.saveName == saveName))
+            return;
+
+        activeLists[listName].saves.Add(new SaveReference
         {
-            saveLists[listName].saves.Add(saveName);
-            SaveLists();
-            RefreshUI();
-        }
+            saveName = saveName,
+            values = values,
+            dateString = dateStr
+        });
+
+        SaveLists();
+        RefreshUI();
     }
 
-    public Dictionary<string, SaveListData> GetAllLists()
+    public Dictionary<string, SaveListData> GetAllListsForCurrentModel()
     {
-        return saveLists;
+        currentModelIndex = PlayerPrefs.GetInt("SelectedModelIndex", 0);
+        if (!saveListsGrouped.ContainsKey(currentModelIndex))
+            saveListsGrouped[currentModelIndex] = new();
+        return saveListsGrouped[currentModelIndex];
     }
 
     private void DeleteList(string listName)
     {
-        if (saveLists.ContainsKey(listName))
+        currentModelIndex = PlayerPrefs.GetInt("SelectedModelIndex", 0);
+        var activeLists = saveListsGrouped[currentModelIndex];
+        if (activeLists.ContainsKey(listName))
         {
-            saveLists.Remove(listName);
+            activeLists.Remove(listName);
             SaveLists();
             RefreshUI();
         }
+    }
+
+    public Dictionary<int, Dictionary<string, SaveListData>> GetGroupedLists()
+    {
+        for (int i = 0; i <= 3; i++)
+            if (!saveListsGrouped.ContainsKey(i))
+                saveListsGrouped[i] = new();
+        return saveListsGrouped;
     }
 }
