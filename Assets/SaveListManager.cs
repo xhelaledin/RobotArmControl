@@ -9,7 +9,7 @@ public class SaveListManager : MonoBehaviour
 {
     [Header("UI References")]
     public GameObject saveItemPrefab;
-    public Transform listContent;
+    public Transform listContent;       // ScrollView content
     public GameObject listPanel;
     public Button closePanelButton;
 
@@ -27,6 +27,12 @@ public class SaveListManager : MonoBehaviour
         if (closePanelButton != null)
             closePanelButton.onClick.AddListener(() => listPanel.SetActive(false));
 
+        LoadLists();
+        RefreshUI();
+    }
+
+    public void LoadFromPlayerPrefs()
+    {
         LoadLists();
         RefreshUI();
     }
@@ -53,17 +59,11 @@ public class SaveListManager : MonoBehaviour
                 saveListsGrouped[i] = new();
     }
 
-    private void SaveLists()
+    public void SaveLists()
     {
         string json = JsonUtilityWrapper.ToJson(new GroupedSerializableDictionary(saveListsGrouped));
         PlayerPrefs.SetString(SaveListsGroupedKey, json);
         PlayerPrefs.Save();
-    }
-
-    public void LoadFromPlayerPrefs()
-    {
-        LoadLists();
-        RefreshUI();
     }
 
     public void ShowPanel()
@@ -86,15 +86,19 @@ public class SaveListManager : MonoBehaviour
             GameObject item = Instantiate(saveItemPrefab, listContent);
             SaveListItemManager manager = item.GetComponent<SaveListItemManager>();
 
+            manager.parentListContainer = listContent;
             manager.SetData(
                 kvp.Key,
                 kvp.Value,
                 (name) => RunListSequentially(name, 1f, true),
                 (name) => RunListSequentially(name, 1f, false),
                 DeleteList,
-                listManager
+                listManager,
+                this
             );
         }
+
+        LayoutRebuilder.ForceRebuildLayoutImmediate(listContent.GetComponent<RectTransform>());
     }
 
     public void RunListSequentially(string listName, float delay = 1f, bool runCommand = true)
@@ -112,7 +116,7 @@ public class SaveListManager : MonoBehaviour
         foreach (var save in saves)
         {
             listManager.ApplySavedValuesExternal(save.values.ToArray(), runCommand);
-            yield return new WaitForSeconds(delay);
+            yield return new WaitForSeconds(save.delayMs / 1000f);
         }
     }
 
@@ -141,7 +145,6 @@ public class SaveListManager : MonoBehaviour
         if (!activeLists.ContainsKey(listName))
             CreateList(listName);
 
-        // fetch from PlayerPrefs
         string saveKey = $"SavedArray_{currentModelIndex}_{saveName}";
         string raw = PlayerPrefs.GetString(saveKey, null);
         if (string.IsNullOrEmpty(raw)) return;
@@ -161,7 +164,8 @@ public class SaveListManager : MonoBehaviour
         {
             saveName = saveName,
             values = values,
-            dateString = dateStr
+            dateString = dateStr,
+            delayMs = 1000 // default 1s
         });
 
         SaveLists();

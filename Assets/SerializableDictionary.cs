@@ -8,6 +8,7 @@ public class SaveReference
     public string saveName;
     public List<int> values;
     public string dateString;
+    public int delayMs = 1000; // default 1 sec
 }
 
 [Serializable]
