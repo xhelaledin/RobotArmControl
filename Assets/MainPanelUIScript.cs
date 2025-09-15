@@ -104,7 +104,7 @@ public class MainPanelUIScript : MonoBehaviour, IHideablePanel, IHideablePanel2,
             isActive: IsPanelActive2
         );
 
-        PanelManager.Instance.RegisterPanel2(this);
+        // PanelManager.Instance.RegisterPanel2(this);
     }
 
     public void HidePanel2()
