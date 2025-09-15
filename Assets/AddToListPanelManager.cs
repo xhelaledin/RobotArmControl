@@ -50,9 +50,6 @@ public class AddToListPanelManager : MonoBehaviour
         confirmButton?.onClick.AddListener(AddToSelectedLists);
     }
 
-    /// <summary>
-    /// Open the panel for a specific save name.
-    /// </summary>
     public void Open(string saveName)
     {
         saveToAdd = saveName;
@@ -60,28 +57,22 @@ public class AddToListPanelManager : MonoBehaviour
         RefreshList();
     }
 
-    /// <summary>
-    /// Refresh the list of all available save lists.
-    /// </summary>
     private void RefreshList()
     {
         if (saveListManager == null || listItemPrefab == null || createNewItemPrefab == null) return;
         toggleItems.Clear();
 
-        // Clear existing items
         foreach (Transform child in listContent)
             Destroy(child.gameObject);
 
         var lists = saveListManager.GetAllListsForCurrentModel();
         if (lists == null) return;
 
-        // Add "Create New" button at top
         GameObject createNewGO = Instantiate(createNewItemPrefab, listContent);
         AddToListItemManager createManager = createNewGO.GetComponent<AddToListItemManager>();
         createManager.SetAsCreateNew(OpenRenamePopup);
         toggleItems.Add(createManager);
 
-        // Add each list as a toggle
         foreach (var kvp in lists)
         {
             GameObject item = Instantiate(listItemPrefab, listContent);
@@ -91,9 +82,6 @@ public class AddToListPanelManager : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Add the save to all selected lists.
-    /// </summary>
     private void AddToSelectedLists()
     {
         foreach (var item in toggleItems)
@@ -112,11 +100,6 @@ public class AddToListPanelManager : MonoBehaviour
         renamePopup.SetActive(true);
     }
 
-    /// <summary>
-    /// Create a new list and add the save immediately.
-    /// Newly created list is inserted at the top of the toggle list and auto-selected.
-    /// Closes the AddToList panel after creation.
-    /// </summary>
     private void ConfirmCreateNewList()
     {
         if (renameInputField == null || saveListManager == null || listItemPrefab == null) return;
@@ -128,21 +111,17 @@ public class AddToListPanelManager : MonoBehaviour
         HashSet<string> existingLists = new HashSet<string>(saveListManager.GetAllListsForCurrentModel().Keys);
         string listName = GenerateUniqueName(baseName, existingLists, isDefault);
 
-        // Create the list
         saveListManager.CreateList(listName);
 
-        // Add the save
         saveListManager.AddSaveToList(saveToAdd, listName, allowDuplicates: true);
 
-        // Insert new list toggle at the top (below Create New)
         GameObject item = Instantiate(listItemPrefab, listContent);
-        item.transform.SetSiblingIndex(1); // index 0 is Create New
+        item.transform.SetSiblingIndex(1); 
         AddToListItemManager manager = item.GetComponent<AddToListItemManager>();
         manager.SetData(listName);
-        manager.Select(); // auto-select
+        manager.Select();
         toggleItems.Insert(1, manager);
 
-        // Close both rename popup and select panel
         renamePopup.SetActive(false);
         panel.SetActive(false);
     }

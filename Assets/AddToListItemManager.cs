@@ -51,3 +51,4 @@ public class AddToListItemManager : MonoBehaviour
         if (selectToggle != null) selectToggle.isOn = true;
     }
 }
+
