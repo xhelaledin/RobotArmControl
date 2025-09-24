@@ -9,7 +9,7 @@ public class SaveListManager : MonoBehaviour
 {
     [Header("UI References")]
     public GameObject saveItemPrefab;
-    public Transform listContent;       // ScrollView content
+    public Transform listContent;
     public GameObject listPanel;
     public Button closePanelButton;
 
@@ -19,6 +19,11 @@ public class SaveListManager : MonoBehaviour
     private Dictionary<int, Dictionary<string, SaveListData>> saveListsGrouped = new();
     private int currentModelIndex;
     private const string SaveListsGroupedKey = "SaveListsGrouped";
+
+    // Track running coroutine
+    private Coroutine activeCoroutine;
+    private string activeListName;
+    private bool activeRunCommand;
 
     private void Start()
     {
@@ -68,6 +73,9 @@ public class SaveListManager : MonoBehaviour
 
     public void ShowPanel()
     {
+        // Stop any active coroutine when showing the panel
+        StopActiveCoroutine();
+
         currentModelIndex = PlayerPrefs.GetInt("SelectedModelIndex", 0);
         listPanel.SetActive(true);
         RefreshUI();
@@ -90,8 +98,8 @@ public class SaveListManager : MonoBehaviour
             manager.SetData(
                 kvp.Key,
                 kvp.Value,
-                (name) => RunListSequentially(name, 1f, true),
-                (name) => RunListSequentially(name, 1f, false),
+                (name) => ToggleRunList(name, true),   // Run
+                (name) => ToggleRunList(name, false),  // View whole list
                 DeleteList,
                 listManager,
                 this
@@ -101,22 +109,55 @@ public class SaveListManager : MonoBehaviour
         LayoutRebuilder.ForceRebuildLayoutImmediate(listContent.GetComponent<RectTransform>());
     }
 
-    public void RunListSequentially(string listName, float delay = 1f, bool runCommand = true)
+    /// <summary>
+    /// Starts/stops coroutine depending on state.
+    /// </summary>
+    private void ToggleRunList(string listName, bool runCommand)
     {
-        currentModelIndex = PlayerPrefs.GetInt("SelectedModelIndex", 0);
-        if (!saveListsGrouped[currentModelIndex].ContainsKey(listName)) return;
-        StartCoroutine(RunSavesCoroutine(listName, delay, runCommand));
+        // If already running same list + same mode, stop it
+        if (activeCoroutine != null && activeListName == listName && activeRunCommand == runCommand)
+        {
+            StopActiveCoroutine();
+            return;
+        }
+
+        // Stop previous coroutine if any
+        StopActiveCoroutine();
+
+        // Start new coroutine
+        activeListName = listName;
+        activeRunCommand = runCommand;
+        activeCoroutine = StartCoroutine(RunSavesCoroutine(listName, 1f, runCommand));
     }
 
     private IEnumerator RunSavesCoroutine(string listName, float delay, bool runCommand)
     {
         currentModelIndex = PlayerPrefs.GetInt("SelectedModelIndex", 0);
+        if (!saveListsGrouped[currentModelIndex].ContainsKey(listName)) yield break;
+
         var saves = saveListsGrouped[currentModelIndex][listName].saves;
 
         foreach (var save in saves)
         {
             listManager.ApplySavedValuesExternal(save.values.ToArray(), runCommand);
             yield return new WaitForSeconds(save.delayMs / 1000f);
+        }
+
+        // Auto-clear when finished
+        activeCoroutine = null;
+        activeListName = null;
+    }
+
+    /// <summary>
+    /// Stops and clears the active coroutine if one exists.
+    /// </summary>
+    public void StopActiveCoroutine()
+    {
+        if (activeCoroutine != null)
+        {
+            StopCoroutine(activeCoroutine);
+            activeCoroutine = null;
+            activeListName = null;
         }
     }
 
@@ -165,7 +206,7 @@ public class SaveListManager : MonoBehaviour
             saveName = saveName,
             values = values,
             dateString = dateStr,
-            delayMs = 1000 // default 1s
+            delayMs = 1000 // default 1 second
         });
 
         SaveLists();

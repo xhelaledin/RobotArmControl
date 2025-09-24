@@ -17,12 +17,16 @@ public class SaveListEntryManager : MonoBehaviour
     private SaveReference saveRef;
     private int index;
     private SaveListItemManager parentList;
+    private SaveListManager saveListManager;
+    private ListManager listManager;
 
-    public void Setup(SaveReference reference, int idx, SaveListItemManager parent)
+    public void Setup(SaveReference reference, int idx, SaveListItemManager parent, SaveListManager saveMgr, ListManager listMgr)
     {
         saveRef = reference;
         index = idx;
         parentList = parent;
+        saveListManager = saveMgr;
+        listManager = listMgr;
 
         positionText.text = reference.saveName;
         dateText.text = reference.dateString;

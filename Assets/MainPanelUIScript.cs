@@ -33,6 +33,7 @@ public class MainPanelUIScript : MonoBehaviour, IHideablePanel, IHideablePanel2,
     [Header("Classes")]
     public RobotArmSelection robotArmSelection;
     public ListManager listManager;
+    public SaveListManager saveListManager;
 
     // --- Show Saved Positions Panel ---
     public void ShowSavedPositionsPanel()
@@ -151,6 +152,7 @@ public class MainPanelUIScript : MonoBehaviour, IHideablePanel, IHideablePanel2,
         if (listPanel != null) listPanel.SetActive(false);
         ShowControlPanel();
         robotArmSelection.MoveModelByStartValues();
+        saveListManager.StopActiveCoroutine();
     }
 
     public bool IsPanelActive3()

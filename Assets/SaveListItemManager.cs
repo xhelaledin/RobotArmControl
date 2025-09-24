@@ -78,7 +78,9 @@ public class SaveListItemManager : MonoBehaviour
             var saveRef = currentListData.saves[i];
             GameObject entryGO = Instantiate(entryPrefab, entriesContainer);
             SaveListEntryManager entry = entryGO.GetComponent<SaveListEntryManager>();
-            entry.Setup(saveRef, i, this);
+            
+            // ✅ Pass the required arguments now
+            entry.Setup(saveRef, i, this, saveListManager, listManager);
         }
 
         ForceRebuild();
@@ -121,6 +123,10 @@ public class SaveListItemManager : MonoBehaviour
     public void ViewEntry(int index)
     {
         if (index < 0 || index >= currentListData.saves.Count) return;
+
+        // Stop coroutine before showing a single entry
+        saveListManager.StopActiveCoroutine();
+
         var save = currentListData.saves[index];
         listManager.ApplySavedValuesExternal(save.values.ToArray(), false);
     }
