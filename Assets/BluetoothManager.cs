@@ -216,6 +216,7 @@ public class BluetoothManager : MonoBehaviour, IHideablePanel
 
     public void ShowBluetoothPanelFromMainPage()
     {
+        HidePanel();
         InitPairedSection();
         settingsPanel.SetActive(true);
         bluetoothMainPanel.SetActive(true);
