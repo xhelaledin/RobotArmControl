@@ -59,7 +59,7 @@ public class AddToListPanelManager : MonoBehaviour, IHideablePanel, IHideablePan
             hide: HidePanel,
             isActive: IsPanelActive
         );
-        PanelManager.Instance.RegisterPanel(this);
+        PanelManager.Instance?.RegisterPanel(this);
     }
 
     public void HidePanel()
@@ -73,7 +73,7 @@ public class AddToListPanelManager : MonoBehaviour, IHideablePanel, IHideablePan
     }
 
     // --- Rename Popup (IHideablePanel2) ---
-    private void OpenRenamePopup()
+    public void OpenRenamePopup()
     {
         if (renamePopup == null || renameInputField == null) return;
 
@@ -85,7 +85,14 @@ public class AddToListPanelManager : MonoBehaviour, IHideablePanel, IHideablePan
             hide: HidePanel2,
             isActive: IsPanelActive2
         );
-        PanelManager.Instance.RegisterPanel2(this);
+        PanelManager.Instance?.RegisterPanel2(this);
+    }
+
+    // ✅ Used by SaveListManager when pressing "Create New List"
+    public void OpenRenamePopupExternal()
+    {
+        saveToAdd = null; // don’t add a save, just create empty list
+        OpenRenamePopup();
     }
 
     public void HidePanel2()
@@ -147,14 +154,10 @@ public class AddToListPanelManager : MonoBehaviour, IHideablePanel, IHideablePan
         string listName = GenerateUniqueName(baseName, existingLists, isDefault);
 
         saveListManager.CreateList(listName);
-        saveListManager.AddSaveToList(saveToAdd, listName, allowDuplicates: true);
 
-        GameObject item = Instantiate(listItemPrefab, listContent);
-        item.transform.SetSiblingIndex(1);
-        AddToListItemManager manager = item.GetComponent<AddToListItemManager>();
-        manager.SetData(listName);
-        manager.Select();
-        toggleItems.Insert(1, manager);
+        // ✅ Only add save if we opened with a saveName
+        if (!string.IsNullOrEmpty(saveToAdd))
+            saveListManager.AddSaveToList(saveToAdd, listName, allowDuplicates: true);
 
         HidePanel2();
         HidePanel();

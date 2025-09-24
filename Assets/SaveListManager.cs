@@ -13,14 +13,18 @@ public class SaveListManager : MonoBehaviour
     public GameObject listPanel;
     public Button closePanelButton;
 
+    [Header("Empty / Create UI")]
+    public GameObject noListsPrefab;
+    public Button createListButton;
+
     [Header("Dependencies")]
     public ListManager listManager;
+    public AddToListPanelManager addToListPanelManager;
 
     private Dictionary<int, Dictionary<string, SaveListData>> saveListsGrouped = new();
     private int currentModelIndex;
     private const string SaveListsGroupedKey = "SaveListsGrouped";
 
-    // Track running coroutine
     private Coroutine activeCoroutine;
     private string activeListName;
     private bool activeRunCommand;
@@ -31,6 +35,19 @@ public class SaveListManager : MonoBehaviour
 
         if (closePanelButton != null)
             closePanelButton.onClick.AddListener(() => listPanel.SetActive(false));
+
+        if (createListButton != null)
+            createListButton.onClick.AddListener(() =>
+            {
+                if (addToListPanelManager != null)
+                {
+                    addToListPanelManager.OpenRenamePopupExternal();
+                }
+                else
+                {
+                    Debug.LogWarning("SaveListManager: AddToListPanelManager not assigned!");
+                }
+            });
 
         LoadLists();
         RefreshUI();
@@ -73,7 +90,6 @@ public class SaveListManager : MonoBehaviour
 
     public void ShowPanel()
     {
-        // Stop any active coroutine when showing the panel
         StopActiveCoroutine();
 
         currentModelIndex = PlayerPrefs.GetInt("SelectedModelIndex", 0);
@@ -89,42 +105,45 @@ public class SaveListManager : MonoBehaviour
         currentModelIndex = PlayerPrefs.GetInt("SelectedModelIndex", 0);
         var activeLists = saveListsGrouped[currentModelIndex];
 
-        foreach (var kvp in activeLists)
+        if (activeLists.Count == 0)
         {
-            GameObject item = Instantiate(saveItemPrefab, listContent);
-            SaveListItemManager manager = item.GetComponent<SaveListItemManager>();
+            if (noListsPrefab != null)
+                Instantiate(noListsPrefab, listContent);
+        }
+        else
+        {
+            foreach (var kvp in activeLists)
+            {
+                GameObject item = Instantiate(saveItemPrefab, listContent);
+                SaveListItemManager manager = item.GetComponent<SaveListItemManager>();
 
-            manager.parentListContainer = listContent;
-            manager.SetData(
-                kvp.Key,
-                kvp.Value,
-                (name) => ToggleRunList(name, true),   // Run
-                (name) => ToggleRunList(name, false),  // View whole list
-                DeleteList,
-                listManager,
-                this
-            );
+                manager.parentListContainer = listContent;
+                manager.SetData(
+                    kvp.Key,
+                    kvp.Value,
+                    (name) => ToggleRunList(name, true),
+                    (name) => ToggleRunList(name, false),
+                    DeleteList,
+                    listManager,
+                    this
+                );
+            }
         }
 
         LayoutRebuilder.ForceRebuildLayoutImmediate(listContent.GetComponent<RectTransform>());
     }
 
-    /// <summary>
-    /// Starts/stops coroutine depending on state.
-    /// </summary>
+    // --- Coroutine Handling ---
     private void ToggleRunList(string listName, bool runCommand)
     {
-        // If already running same list + same mode, stop it
         if (activeCoroutine != null && activeListName == listName && activeRunCommand == runCommand)
         {
             StopActiveCoroutine();
             return;
         }
 
-        // Stop previous coroutine if any
         StopActiveCoroutine();
 
-        // Start new coroutine
         activeListName = listName;
         activeRunCommand = runCommand;
         activeCoroutine = StartCoroutine(RunSavesCoroutine(listName, 1f, runCommand));
@@ -143,14 +162,10 @@ public class SaveListManager : MonoBehaviour
             yield return new WaitForSeconds(save.delayMs / 1000f);
         }
 
-        // Auto-clear when finished
         activeCoroutine = null;
         activeListName = null;
     }
 
-    /// <summary>
-    /// Stops and clears the active coroutine if one exists.
-    /// </summary>
     public void StopActiveCoroutine()
     {
         if (activeCoroutine != null)
@@ -206,7 +221,7 @@ public class SaveListManager : MonoBehaviour
             saveName = saveName,
             values = values,
             dateString = dateStr,
-            delayMs = 1000 // default 1 second
+            delayMs = 1000
         });
 
         SaveLists();
