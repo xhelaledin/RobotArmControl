@@ -98,11 +98,11 @@ public class MainPanelUIScript : MonoBehaviour, IHideablePanel, IHideablePanel2,
         listHeaderPanel.SetActive(false);
 
         // Push into PanelManager history
-        PanelManager.Instance?.PushPanel(
-            key: controlPanel,
-            hide: HidePanel2,
-            isActive: IsPanelActive2
-        );
+        // PanelManager.Instance?.PushPanel(
+        //     key: controlPanel,
+        //     hide: HidePanel2,
+        //     isActive: IsPanelActive2
+        // );
 
         // PanelManager.Instance.RegisterPanel2(this);
     }
