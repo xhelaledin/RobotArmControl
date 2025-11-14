@@ -19,9 +19,9 @@ public class Terminal : MonoBehaviour, IDeselectHandler, IHideablePanel
 
 
     [Header("World Space Keyboard Handling")]
-    public Canvas worldCanvas;              // Assign your World Space Canvas here
-    public RectTransform inputBarTransform; // Assign Input Bar RectTransform here
-    public RectTransform scrollViewContainer; // Assign the RectTransform that contains scrollRect content
+    public Canvas worldCanvas;
+    public RectTransform inputBarTransform;
+    public RectTransform scrollViewContainer;
 
     private Vector3 inputBarOriginalPosition;
     private Vector3 scrollViewOriginalPosition;
@@ -29,7 +29,6 @@ public class Terminal : MonoBehaviour, IDeselectHandler, IHideablePanel
     private const string logKey = "TerminalLog";
     private string lastMessageDate = "";
 
-    // Flag to allow defocus (used when you explicitly want to hide keyboard)
     private bool allowDefocus = false;
 
     [Header("Connection to Other Script")]
@@ -60,7 +59,7 @@ public class Terminal : MonoBehaviour, IDeselectHandler, IHideablePanel
     {
         yield return new WaitForSeconds(0.2f);
         inputField.interactable = true;
-        inputField.ActivateInputField();  // Activate input on start
+        inputField.ActivateInputField();
     }
 
     public void ShowTerminalPanel()
@@ -94,27 +93,22 @@ public class Terminal : MonoBehaviour, IDeselectHandler, IHideablePanel
 
         LogSent(message);
         inputField.text = "";
-        //inputField.ActivateInputField(); // Keep keyboard open and input focused after send
+        inputField.ActivateInputField(); // Keep keyboard open and input focused after send
     }
 
-    // Prevent input field from losing focus unintentionally
     public void OnDeselect(BaseEventData eventData)
     {
         if (!allowDefocus)
         {
-            // Re-focus input field immediately to keep keyboard open
             inputField.ActivateInputField();
         }
     }
 
-    // Call this if you want to explicitly close keyboard and defocus input
     public void CloseKeyboard()
     {
         allowDefocus = true;
         inputField.DeactivateInputField();
     }
-
-    // Rest of your existing code (AddMessage, LogSent, LogReceived, etc.)
 
     public void LogSent(string message)
     {
