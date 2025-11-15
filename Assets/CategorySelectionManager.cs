@@ -1,11 +1,13 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
-using UnityEngine.UI;
+using TMPro;
 using Lean.Gui;
+using UnityEngine.UI;
+using System.Collections.Generic;
+using System.Collections;
+using System.Linq;
+using System;
 
-public class CategorySelectionManager : MonoBehaviour, IHideablePanel
+public class CategorySelectionManager : MonoBehaviour
 {
     [Header("Sprites for Toggle Positions")]
     public Sprite spriteSolo;
@@ -36,7 +38,7 @@ public class CategorySelectionManager : MonoBehaviour, IHideablePanel
         "Encryption",
         "Slider Config",
         "Visual Config",
-        "Bluetooth Logs"   // ✅ Added
+        "Bluetooth Logs"
     };
 
     private readonly string[] categoryDescriptions = new string[]
@@ -45,7 +47,7 @@ public class CategorySelectionManager : MonoBehaviour, IHideablePanel
         "Encryption Type and Keys",
         "Slider Configurations",
         "3D Model Configurations",
-        "Logs sent/received via Terminal"   // ✅ Added
+        "Logs sent/received via Terminal"
     };
 
     [Serializable]
@@ -72,7 +74,7 @@ public class CategorySelectionManager : MonoBehaviour, IHideablePanel
             categoryIcon1,
             categoryIcon2,
             categoryIcon3,
-            categoryIcon4 // ✅ Include new icon
+            categoryIcon4
         };
 
         if (selectAllToggle != null)
@@ -195,7 +197,6 @@ public class CategorySelectionManager : MonoBehaviour, IHideablePanel
         ResetAllToggles();
         gameObject.SetActive(true);
 
-        PanelManager.Instance.RegisterPanel(this);
     }
 
     public void ShowRestorePanel(string filePath, List<PrefCategory> availableCategories)
@@ -207,6 +208,7 @@ public class CategorySelectionManager : MonoBehaviour, IHideablePanel
         ResetAllToggles();
         SetAvailableCategories(availableCategories);
         gameObject.SetActive(true);
+        
     }
 
     private void SetAvailableCategories(List<PrefCategory> available)
@@ -257,6 +259,9 @@ public class CategorySelectionManager : MonoBehaviour, IHideablePanel
             prefsBackup.SavePrefsWithSelectedCategories(selected);
             if (prefsBackup != null && prefsBackup.backupPanel != null)
                 prefsBackup.backupPanel.SetActive(false);
+            
+            // We also hide this selection panel
+            HidePanel();
         }
     }
 }

@@ -6,7 +6,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
 
-public class CodeViewer : MonoBehaviour, IHideablePanel, IHideablePanel2, IHideablePanel3
+public class CodeViewer : MonoBehaviour
 {
     [System.Serializable]
     public class CodeGroup
@@ -25,19 +25,20 @@ public class CodeViewer : MonoBehaviour, IHideablePanel, IHideablePanel2, IHidea
         [Header("Layout options")]
         public bool wrapText = false;       // true = vertical scrolling only; false = also horizontal scroll
         public float padding = 16f;         // extra pixels added to measured size
+        
+        [Header("Save Options")]
+        public string defaultFilename = "code.txt"; // filename For saving
     }
 
-    [Header("Code Groups (3)")]
-    public CodeGroup group1;
-    public CodeGroup group2;
-    public CodeGroup group3;
+    [Header("Code Groups")]
+    public List<CodeGroup> codeGroups = new List<CodeGroup>();
 
     [Header("Styling (hex colors)")]
     public string keywordColor = "#569CD6";  // blue
-    public string typeColor = "#4EC9B0";  // teal/number
-    public string stringColor = "#D69D85";  // string color
-    public string commentColor = "#6A9955";  // green
-    public string preprocColor = "#C586C0";  // purple
+    public string typeColor = "#4EC9B0";     // teal/number
+    public string stringColor = "#D69D85";     // string color
+    public string commentColor = "#6A9955";    // green
+    public string preprocColor = "#C586C0";    // purple
 
     [Header("UI tuning")]
     public int fontSize = 18;
@@ -46,16 +47,17 @@ public class CodeViewer : MonoBehaviour, IHideablePanel, IHideablePanel2, IHidea
 
     void Start()
     {
-        SetupGroup(group1);
-        SetupGroup(group2);
-        SetupGroup(group3);
+        foreach (var group in codeGroups)
+        {
+            SetupGroup(group);
+        }
     }
 
     void SetupGroup(CodeGroup group)
     {
         if (group == null) return;
 
-        if (group.codeFile != null)
+        if (group.codeFile != null && string.IsNullOrEmpty(group.rawCode)) // Only use file if rawCode is empty
             group.rawCode = group.codeFile.text;
 
         if (group.textComponent == null || group.content == null || group.viewport == null)
@@ -74,7 +76,7 @@ public class CodeViewer : MonoBehaviour, IHideablePanel, IHideablePanel2, IHidea
         if (group.panel != null) group.panel.SetActive(true); // temporarily show to get correct viewport size
         StartCoroutine(DeferredResize(group));
 
-        // Start hidden if you like
+        // Start hidden
         if (group.panel != null) group.panel.SetActive(false);
     }
 
@@ -91,7 +93,7 @@ public class CodeViewer : MonoBehaviour, IHideablePanel, IHideablePanel2, IHidea
         tmp.richText = true;
         tmp.fontSize = fontSize;
         tmp.alignment = TextAlignmentOptions.TopLeft;
-        tmp.textWrappingMode = TextWrappingModes.NoWrap;    // default; per-group override in ResizeContentToText
+        tmp.textWrappingMode = TextWrappingModes.NoWrap;      // default; per-group override in ResizeContentToText
         tmp.overflowMode = TextOverflowModes.Overflow;
     }
 
@@ -169,13 +171,17 @@ public class CodeViewer : MonoBehaviour, IHideablePanel, IHideablePanel2, IHidea
     }
 
     // --- Panel control ---
-    public void ShowPanel1() => ShowPanel(group1);
-    public void ShowPanel2() => ShowPanel(group2);
-    public void ShowPanel3() => ShowPanel(group3);
-
-    public void HidePanel1() => HidePanel(group1);
-    public void HidePanel2() => HidePanel(group2);
-    public void HidePanel3() => HidePanel(group3);
+    public void ShowPanelByIndex(int index)
+    {
+        if (index >= 0 && index < codeGroups.Count)
+        {
+            ShowPanel(codeGroups[index]);
+        }
+        else
+        {
+            Debug.LogWarning($"CodeViewer: Invalid panel index {index}. No group exists at that index.", this);
+        }
+    }
 
     public void ShowPanel(CodeGroup group)
     {
@@ -187,18 +193,10 @@ public class CodeViewer : MonoBehaviour, IHideablePanel, IHideablePanel2, IHidea
             // NEW: push this specific group to the unified history (bump-to-top)
             PanelManager.Instance?.PushPanel(
                 key: group.panel,
-                hide: () => HidePanel(group),
+                hide: () => HidePanel(group), // Pass the specific group to the hide action
                 isActive: () => group.panel != null && group.panel.activeSelf
             );
         }
-
-        // Keep type-specific registration so HasActivePanels() remains correct
-        if (group == group1)
-            PanelManager.Instance.RegisterPanel(this as IHideablePanel);
-        else if (group == group2)
-            PanelManager.Instance.RegisterPanel2(this as IHideablePanel2);
-        else if (group == group3)
-            PanelManager.Instance.RegisterPanel3(this as IHideablePanel3);
     }
 
     private void HidePanel(CodeGroup group)
@@ -207,25 +205,32 @@ public class CodeViewer : MonoBehaviour, IHideablePanel, IHideablePanel2, IHidea
             group.panel.SetActive(false);
     }
 
-    // IHideablePanel
-    public void HidePanel() => HidePanel(group1);
-    public bool IsPanelActive() => group1?.panel != null && group1.panel.activeSelf;
-
-    // IHideablePanel2 — explicit implementation to avoid method conflicts
-    void IHideablePanel2.HidePanel2() => HidePanel(group2);
-    bool IHideablePanel2.IsPanelActive2() => group2?.panel != null && group2.panel.activeSelf;
-
-    // IHideablePanel3 — explicit implementation to avoid method conflicts
-    void IHideablePanel3.HidePanel3() => HidePanel(group3);
-    bool IHideablePanel3.IsPanelActive3() => group3?.panel != null && group3.panel.activeSelf;
-
+    public void HidePanelByIndex(int index)
+    {
+        if (index >= 0 && index < codeGroups.Count)
+        {
+            HidePanel(codeGroups[index]);
+        }
+        else
+        {
+            Debug.LogWarning($"CodeViewer: Invalid panel index {index}. No group exists at that index.", this);
+        }
+    }
 
 
     // --- Copy ---
-    public void CopyGroup1() => CopyRawCode(group1);
-    public void CopyGroup2() => CopyRawCode(group2);
-    public void CopyGroup3() => CopyRawCode(group3);
-
+    public void CopyGroupByIndex(int index)
+    {
+        if (index >= 0 && index < codeGroups.Count)
+        {
+            CopyRawCode(codeGroups[index]);
+        }
+        else
+        {
+            Debug.LogWarning($"CodeViewer: Invalid copy index {index}.", this);
+        }
+    }
+    
     void CopyRawCode(CodeGroup group)
     {
         if (group == null) return;
@@ -234,21 +239,33 @@ public class CodeViewer : MonoBehaviour, IHideablePanel, IHideablePanel2, IHidea
     }
 
     // --- Save ---
-    public void SaveGroup1() => SaveRawCode(group1, "code1.txt");
-    public void SaveGroup2() => SaveRawCode(group2, "code2.txt");
-    public void SaveGroup3() => SaveRawCode(group3, "code3.txt");
+    public void SaveGroupByIndex(int index)
+    {
+        if (index >= 0 && index < codeGroups.Count)
+        {
+            CodeGroup group = codeGroups[index];
+            SaveRawCode(group, group.defaultFilename);
+        }
+        else
+        {
+            Debug.LogWarning($"CodeViewer: Invalid save index {index}.", this);
+        }
+    }
 
     void SaveRawCode(CodeGroup group, string filename)
     {
         if (group == null) return;
+        if (string.IsNullOrEmpty(filename)) filename = "code.txt"; // Fallback
 
         string tmpPath = Path.Combine(Application.temporaryCachePath, filename);
         File.WriteAllText(tmpPath, group.rawCode ?? "");
-
+        
         NativeFilePicker.ExportFile(tmpPath, (bool success) =>
         {
             Debug.Log($"NativeFilePicker Export finished: {success}");
         });
+
+        Debug.Log($"Wrote file to {tmpPath}. (NativeFilePicker commented out)");
     }
 
     // --- Simple C++ syntax highlighter ---
@@ -295,7 +312,6 @@ public class CodeViewer : MonoBehaviour, IHideablePanel, IHideablePanel2, IHidea
         return code;
     }
 
-    // --- Open Website Buttons ---
     public void OpenWebsite1()
     {
         string link = "https://github.com/xhelaledin/RobotArmControl";
@@ -320,11 +336,11 @@ public class CodeViewer : MonoBehaviour, IHideablePanel, IHideablePanel2, IHidea
         // Application.OpenURL("https://github.com/Octoate/ArduinoDES");
     }
 
-    // Optional: call this if the viewport size changes at runtime (e.g., orientation, window resize)
     public void RefreshSizes()
     {
-        ResizeContentToText(group1);
-        ResizeContentToText(group2);
-        ResizeContentToText(group3);
+        foreach (var group in codeGroups)
+        {
+            ResizeContentToText(group);
+        }
     }
 }

@@ -2,7 +2,7 @@ using UnityEngine;
 using TMPro;
 using UnityEngine.UI;
 
-public class EncryptionManager : MonoBehaviour, IHideablePanel
+public class EncryptionManager : MonoBehaviour
 {
     [Header("UI Components")]
     public AdvancedDropdown encryptionDropdown; 
@@ -31,11 +31,16 @@ public class EncryptionManager : MonoBehaviour, IHideablePanel
             encryptionDropdown.onChangedValue += OnEncryptionChanged;
         }
 
-        aesManager.SetKey(PlayerPrefs.GetString("AESKey", ""));
-        desManager.SetKey(PlayerPrefs.GetString("DESKey", ""));
+        if (aesManager != null)
+            aesManager.SetKey(PlayerPrefs.GetString("AESKey", ""));
+        if (desManager != null)
+            desManager.SetKey(PlayerPrefs.GetString("DESKey", ""));
 
-        keyInputField.onValueChanged.AddListener(OnKeyInputChanged);
-        keyInputField.onEndEdit.AddListener(_ => OnSetKeyClicked());
+        if (keyInputField != null)
+        {
+            keyInputField.onValueChanged.AddListener(OnKeyInputChanged);
+            keyInputField.onEndEdit.AddListener(_ => OnSetKeyClicked());
+        }
 
         UpdateKeyStatus();
         UpdateButtonVisibility();
@@ -82,8 +87,13 @@ public class EncryptionManager : MonoBehaviour, IHideablePanel
     {
         keyPanel.SetActive(true);
 
-        PanelManager.Instance.RegisterPanel(this);
+        PanelManager.Instance.PushPanel(
+            key: keyPanel,
+            hide: HidePanel,      // Pass the existing HidePanel method
+            isActive: IsPanelActive  // Pass the existing IsPanelActive method
+        );
         
+
         // Handle "None" encryption type
         if (encryptionTypeIndex == 0)
         {
@@ -118,13 +128,16 @@ public class EncryptionManager : MonoBehaviour, IHideablePanel
         }
     }
 
+    // This method is now called by PanelManager's 'hide' delegate
     public void HidePanel()
     {
         keyPanel.SetActive(false);
     }
 
+    // This method is now called by PanelManager's 'isActive' delegate
     public bool IsPanelActive()
     {
+        if (keyPanel == null) return false;
         return keyPanel.activeSelf;
     }
 
@@ -207,7 +220,8 @@ public class EncryptionManager : MonoBehaviour, IHideablePanel
                 _ => "[Unknown]"
             };
 
-            keyStatusText.text = $"Key Set: {key}";
+            // To avoid showing the key, let's just confirm it's set
+            keyStatusText.text = $"Key Set"; // Simplified: "Key Set: {key}"
             keyStatusText.color = Color.green;
         }
         else

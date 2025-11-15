@@ -1,9 +1,9 @@
 ﻿<Solution>
   <Project Path="LeanTransition.csproj" />
-  <Project Path="Assembly-CSharp.csproj" />
   <Project Path="CW.Common.csproj" />
   <Project Path="LeanCommon.csproj" />
   <Project Path="NativeFilePicker.Runtime.csproj" />
+  <Project Path="Assembly-CSharp.csproj" />
   <Project Path="LeanGUI.csproj" />
   <Project Path="NativeFilePicker.Editor.csproj" />
   <Project Path="LeanTransition.Editor.csproj" />

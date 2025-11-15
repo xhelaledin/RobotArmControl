@@ -30,7 +30,7 @@ public class SliderGroup
     [HideInInspector] public bool isAccordionOpen; // runtime only
 }
 
-public class SliderValueConfig : MonoBehaviour, IHideablePanel
+public class SliderValueConfig : MonoBehaviour
 {
     public GameObject sliderConfigPanel;
 
@@ -180,18 +180,19 @@ public class SliderValueConfig : MonoBehaviour, IHideablePanel
         if (buttonsSettingsPanel != null)
             buttonsSettingsPanel.SetActive(isButtonsAccordionOpen);
 
-        PanelManager.Instance.RegisterPanel(this);
+        PanelManager.Instance.PushPanel(
+            key: sliderConfigPanel,
+            hide: () => HideSliderConfigPanel(), // Call the renamed method
+            isActive: () => sliderConfigPanel != null && sliderConfigPanel.activeSelf
+        );
+        
+
     }
 
-    public void HidePanel()
+    public void HideSliderConfigPanel()
     {
         sliderConfigPanel.SetActive(false);
         sliderTextUpdater.RefreshAllFromPrefs();
-    }
-
-    public bool IsPanelActive()
-    {
-        return sliderConfigPanel.activeSelf;
     }
 
     void ToggleGroup(SliderGroup group)

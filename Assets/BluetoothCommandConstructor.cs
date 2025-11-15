@@ -5,7 +5,7 @@ using UnityEngine.UI;
 using System.Collections.Generic;
 using System.Collections;
 
-public class BluetoothCommandConstructor : MonoBehaviour, IHideablePanel
+public class BluetoothCommandConstructor : MonoBehaviour
 {
     [Header("UI Panels")]
     public GameObject commandConstructPanel;
@@ -426,16 +426,25 @@ public class BluetoothCommandConstructor : MonoBehaviour, IHideablePanel
         if (saveCommandDisplayText != null)
             saveCommandDisplayText.text = saveCommand + commandDelimiter + BuildSaveExample();
 
-        PanelManager.Instance.RegisterPanel(this);
+        PanelManager.Instance.PushPanel(
+            key: commandConstructPanel,
+            hide: HidePanel,
+            isActive: IsPanelActive
+        );
+        
+
     }
 
+    // This method is now called by PanelManager's 'hide' delegate
     public void HidePanel()
     {
         commandConstructPanel.SetActive(false);
     }
 
+    // This method is now called by PanelManager's 'isActive' delegate
     public bool IsPanelActive()
     {
+        if (commandConstructPanel == null) return false;
         return commandConstructPanel.activeSelf;
     }
 }

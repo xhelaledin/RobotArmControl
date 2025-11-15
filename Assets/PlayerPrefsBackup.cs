@@ -6,12 +6,12 @@ using System;
 using System.Linq;
 using NativeFilePickerNamespace;
 
-public class PlayerPrefsBackup : MonoBehaviour, IHideablePanel, IHideablePanel2, IHideablePanel3
+public class PlayerPrefsBackup : MonoBehaviour
 {
     [Header("Panels")]
-    public GameObject backupRestorePanel;  // Root panel holding backup & restore
-    public GameObject backupPanel;         // Backup subpanel
-    public GameObject restorePanel;        // Restore subpanel
+    public GameObject backupRestorePanel;   // Root panel holding backup & restore
+    public GameObject backupPanel;          // Backup subpanel
+    public GameObject restorePanel;         // Restore subpanel
 
     [Header("Category Manager")]
     public CategorySelectionManager categorySelectionManager;
@@ -108,20 +108,14 @@ public class PlayerPrefsBackup : MonoBehaviour, IHideablePanel, IHideablePanel2,
         categorySelectionManager.RefreshToggleList(itemDataList);
         categorySelectionManager.ShowBackupPanel();
 
-        PanelManager.Instance.RegisterPanel(this);
         PanelManager.Instance.PushPanel(
             key: backupPanel,
-            hide: HidePanel,
-            isActive: IsPanelActive
+            hide: () => HideBackupPanel(),
+            isActive: () => backupPanel != null && backupPanel.activeSelf
         );
     }
 
     public void HideBackupPanel() => backupPanel?.SetActive(false);
-
-    // IHideablePanel
-    public void HidePanel() => HideBackupPanel();
-    public bool IsPanelActive() => backupPanel != null && backupPanel.activeSelf;
-
 
     // === BACKUP-RESTORE ROOT PANEL ===
     public void ShowBackupRestorePanel()
@@ -134,20 +128,14 @@ public class PlayerPrefsBackup : MonoBehaviour, IHideablePanel, IHideablePanel2,
 
         backupRestorePanel.SetActive(true);
 
-        PanelManager.Instance.RegisterPanel2(this);
         PanelManager.Instance.PushPanel(
             key: backupRestorePanel,
-            hide: HidePanel2,
-            isActive: IsPanelActive2
+            hide: () => HideBackupRestorePanel(),
+            isActive: () => backupRestorePanel != null && backupRestorePanel.activeSelf
         );
     }
 
     public void HideBackupRestorePanel() => backupRestorePanel?.SetActive(false);
-
-    // IHideablePanel2
-    public void HidePanel2() => HideBackupRestorePanel();
-    public bool IsPanelActive2() => backupRestorePanel != null && backupRestorePanel.activeSelf;
-
 
     // === RESTORE PANEL ===
     public void ShowRestorePanel()
@@ -161,20 +149,14 @@ public class PlayerPrefsBackup : MonoBehaviour, IHideablePanel, IHideablePanel2,
         backupRestorePanel?.SetActive(true);
         restorePanel.SetActive(true);
 
-        PanelManager.Instance.RegisterPanel3(this);
         PanelManager.Instance.PushPanel(
             key: restorePanel,
-            hide: HidePanel3,
-            isActive: IsPanelActive3
+            hide: () => HideRestorePanel(),
+            isActive: () => restorePanel != null && restorePanel.activeSelf
         );
     }
 
     public void HideRestorePanel() => restorePanel?.SetActive(false);
-
-    // IHideablePanel3
-    public void HidePanel3() => HideRestorePanel();
-    public bool IsPanelActive3() => restorePanel != null && restorePanel.activeSelf;
-
 
     // === RESTORE LOGIC ===
     public void RestorePrefsFromFilePicker()
@@ -217,7 +199,6 @@ public class PlayerPrefsBackup : MonoBehaviour, IHideablePanel, IHideablePanel2,
                 categorySelectionManager.RefreshToggleList(itemDataList);
                 categorySelectionManager.ShowRestorePanel(path, availableCategories);
 
-                // also register restore panel with history
                 ShowRestorePanel();
             }
             catch (Exception ex)
@@ -226,7 +207,7 @@ public class PlayerPrefsBackup : MonoBehaviour, IHideablePanel, IHideablePanel2,
             }
         }, new[] { "application/json", "text/plain" });
 #else
-        Debug.LogWarning("[PlayerPrefsBackup] Restore via file picker only works on mobile builds.");
+        Debug.LogWarning("[PlayerFsBackup] Restore via file picker only works on mobile builds.");
 #endif
     }
 

@@ -3,7 +3,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using System.Collections.Generic;
 
-public class AddToListPanelManager : MonoBehaviour, IHideablePanel, IHideablePanel2
+public class AddToListPanelManager : MonoBehaviour
 {
     [Header("UI References")]
     public GameObject panel;
@@ -47,7 +47,7 @@ public class AddToListPanelManager : MonoBehaviour, IHideablePanel, IHideablePan
         renameConfirmButton?.onClick.AddListener(ConfirmCreateNewList);
     }
 
-    // --- Main Panel (IHideablePanel) ---
+    // --- Main Panel ---
     public void Open(string saveName)
     {
         saveToAdd = saveName;
@@ -59,7 +59,6 @@ public class AddToListPanelManager : MonoBehaviour, IHideablePanel, IHideablePan
             hide: HidePanel,
             isActive: IsPanelActive
         );
-        PanelManager.Instance?.RegisterPanel(this);
     }
 
     public void HidePanel()
@@ -72,7 +71,7 @@ public class AddToListPanelManager : MonoBehaviour, IHideablePanel, IHideablePan
         return panel != null && panel.activeSelf;
     }
 
-    // --- Rename Popup (IHideablePanel2) ---
+    // --- Rename Popup ---
     public void OpenRenamePopup()
     {
         if (renamePopup == null || renameInputField == null) return;
@@ -85,7 +84,6 @@ public class AddToListPanelManager : MonoBehaviour, IHideablePanel, IHideablePan
             hide: HidePanel2,
             isActive: IsPanelActive2
         );
-        PanelManager.Instance?.RegisterPanel2(this);
     }
 
     // ✅ Used by SaveListManager when pressing "Create New List"

@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
-public class MainPanelUIScript : MonoBehaviour, IHideablePanel, IHideablePanel2, IHideablePanel3
+public class MainPanelUIScript : MonoBehaviour
 {
     [Header("Panels")]
     public GameObject controlPanel;
@@ -54,32 +54,31 @@ public class MainPanelUIScript : MonoBehaviour, IHideablePanel, IHideablePanel2,
         controlHeaderPanel.SetActive(false);
         listHeaderPanel.SetActive(false);
 
-        // Push into PanelManager history
         PanelManager.Instance?.PushPanel(
             key: savedPositionsPanel,
             hide: HidePanel,
             isActive: IsPanelActive
         );
 
-        // Keep registration for HasActivePanels()
-        PanelManager.Instance.RegisterPanel(this);
-
         listManager.PopulateList();
     }
 
+    // This is the 'hide' delegate for savedPositionsPanel
     public void HidePanel()
     {
         if (savedPositionsPanel != null) savedPositionsPanel.SetActive(false);
-        ShowControlPanel();
+        ShowControlPanel(); // Return to control panel
         robotArmSelection.MoveModelByStartValues();
     }
 
+    // This is the 'isActive' delegate for savedPositionsPanel
     public bool IsPanelActive()
     {
         return savedPositionsPanel != null && savedPositionsPanel.activeSelf;
     }
 
     // --- Show Control Panel ---
+    // This is the base panel, it does not get registered with the PanelManager.
     public void ShowControlPanel()
     {
         if (savedPositionsPanel != null) savedPositionsPanel.SetActive(false);
@@ -97,25 +96,6 @@ public class MainPanelUIScript : MonoBehaviour, IHideablePanel, IHideablePanel2,
         controlHeaderPanel.SetActive(true);
         savedPositionsHeaderPanel.SetActive(false);
         listHeaderPanel.SetActive(false);
-
-        // Push into PanelManager history
-        // PanelManager.Instance?.PushPanel(
-        //     key: controlPanel,
-        //     hide: HidePanel2,
-        //     isActive: IsPanelActive2
-        // );
-
-        // PanelManager.Instance.RegisterPanel2(this);
-    }
-
-    public void HidePanel2()
-    {
-        if (controlPanel != null) controlPanel.SetActive(false);
-    }
-
-    public bool IsPanelActive2()
-    {
-        return controlPanel != null && controlPanel.activeSelf;
     }
 
     // --- Show List Panel ---
@@ -137,24 +117,25 @@ public class MainPanelUIScript : MonoBehaviour, IHideablePanel, IHideablePanel2,
         savedPositionsHeaderPanel.SetActive(false);
         controlHeaderPanel.SetActive(false);
 
-        // Push into PanelManager history
+
         PanelManager.Instance?.PushPanel(
             key: listPanel,
             hide: HidePanel3,
             isActive: IsPanelActive3
         );
 
-        PanelManager.Instance.RegisterPanel3(this);
     }
 
+    // This is the 'hide' delegate for listPanel
     public void HidePanel3()
     {
         if (listPanel != null) listPanel.SetActive(false);
-        ShowControlPanel();
+        ShowControlPanel(); // Return to control panel
         robotArmSelection.MoveModelByStartValues();
         saveListManager.StopActiveCoroutine();
     }
 
+    // This is the 'isActive' delegate for listPanel
     public bool IsPanelActive3()
     {
         return listPanel != null && listPanel.activeSelf;

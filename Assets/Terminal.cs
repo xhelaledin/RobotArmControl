@@ -6,7 +6,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine.EventSystems;
 
-public class Terminal : MonoBehaviour, IDeselectHandler, IHideablePanel
+public class Terminal : MonoBehaviour, IDeselectHandler
 {
     [Header("UI References")]
     public GameObject terminalPanel;
@@ -39,12 +39,14 @@ public class Terminal : MonoBehaviour, IDeselectHandler, IHideablePanel
         if (inputBarTransform == null)
             inputBarTransform = inputField.transform.parent.GetComponent<RectTransform>();
 
-        inputBarOriginalPosition = inputBarTransform.localPosition;
+        if (inputBarTransform != null)
+            inputBarOriginalPosition = inputBarTransform.localPosition;
 
         if (scrollViewContainer == null && scrollRect != null)
             scrollViewContainer = scrollRect.GetComponent<RectTransform>();
 
-        scrollViewOriginalPosition = scrollViewContainer.localPosition;
+        if (scrollViewContainer != null)
+            scrollViewOriginalPosition = scrollViewContainer.localPosition;
 
         StartCoroutine(DelayedInputActivation());
         LoadLogFromPrefs();
@@ -58,8 +60,11 @@ public class Terminal : MonoBehaviour, IDeselectHandler, IHideablePanel
     private IEnumerator DelayedInputActivation()
     {
         yield return new WaitForSeconds(0.2f);
-        inputField.interactable = true;
-        inputField.ActivateInputField();
+        if (inputField != null)
+        {
+            inputField.interactable = true;
+            inputField.ActivateInputField();
+        }
     }
 
     public void ShowTerminalPanel()
@@ -69,18 +74,24 @@ public class Terminal : MonoBehaviour, IDeselectHandler, IHideablePanel
         inputField.ActivateInputField();
         StartCoroutine(ScrollToBottomNextFrame());
 
-        PanelManager.Instance.RegisterPanel(this);
+        PanelManager.Instance.PushPanel(
+            key: terminalPanel,
+            hide: HidePanel,      // Pass the existing HidePanel method
+            isActive: IsPanelActive  // Pass the existing IsPanelActive method
+        );
     }
 
     public void HidePanel()
     {
         terminalPanel?.SetActive(false);
         allowDefocus = true;
-        inputField.DeactivateInputField();
+        if (inputField != null)
+            inputField.DeactivateInputField();
     }
 
     public bool IsPanelActive()
     {
+        if (terminalPanel == null) return false;
         return terminalPanel.activeSelf;
     }
 
@@ -89,7 +100,8 @@ public class Terminal : MonoBehaviour, IDeselectHandler, IHideablePanel
         string message = inputField.text;
         if (string.IsNullOrWhiteSpace(message)) return;
 
-        bluetoothManager.WriteData(message);
+        if (bluetoothManager != null)
+            bluetoothManager.WriteData(message);
 
         LogSent(message);
         inputField.text = "";
@@ -98,7 +110,7 @@ public class Terminal : MonoBehaviour, IDeselectHandler, IHideablePanel
 
     public void OnDeselect(BaseEventData eventData)
     {
-        if (!allowDefocus)
+        if (!allowDefocus && inputField != null)
         {
             inputField.ActivateInputField();
         }
@@ -107,7 +119,8 @@ public class Terminal : MonoBehaviour, IDeselectHandler, IHideablePanel
     public void CloseKeyboard()
     {
         allowDefocus = true;
-        inputField.DeactivateInputField();
+        if (inputField != null)
+            inputField.DeactivateInputField();
     }
 
     public void LogSent(string message)
@@ -184,7 +197,8 @@ public class Terminal : MonoBehaviour, IDeselectHandler, IHideablePanel
     private void ScrollToBottom()
     {
         LayoutRebuilder.ForceRebuildLayoutImmediate((RectTransform)messageContainer);
-        scrollRect.verticalNormalizedPosition = 0f;
+        if (scrollRect != null)
+            scrollRect.verticalNormalizedPosition = 0f;
     }
 
     private IEnumerator ScrollToBottomNextFrame()

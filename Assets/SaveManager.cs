@@ -59,7 +59,7 @@ public class CombinedExportData
     }
 }
 
-public class SaveManager : MonoBehaviour, IHideablePanel
+public class SaveManager : MonoBehaviour
 {
     public GameObject popupPanel;
     public TMP_InputField inputField;
@@ -79,7 +79,8 @@ public class SaveManager : MonoBehaviour, IHideablePanel
 
     void Start()
     {
-        popupPanel.SetActive(false);
+        if (popupPanel != null)
+            popupPanel.SetActive(false);
 
         if (closeButton != null)
             closeButton.onClick.AddListener(CloseButtonPressed);
@@ -114,7 +115,12 @@ public class SaveManager : MonoBehaviour, IHideablePanel
         popupPanel.SetActive(true);
         inputField.text = "";
 
-        PanelManager.Instance.RegisterPanel(this);
+        PanelManager.Instance.PushPanel(
+            key: popupPanel,
+            hide: HidePanel,      // Pass the existing HidePanel method
+            isActive: IsPanelActive  // Pass the existing IsPanelActive method
+        );
+        
     }
 
     public void StartSavingProcess()
@@ -203,11 +209,13 @@ public class SaveManager : MonoBehaviour, IHideablePanel
         Debug.Log($"Saved data: {saveString}");
     }
 
+    // This method is now called by PanelManager's 'hide' delegate
     public void HidePanel()
     {
         popupPanel.SetActive(false);
     }
-
+    
+    // This method is now called by PanelManager's 'isActive' delegate
     public bool IsPanelActive()
     {
         return popupPanel.activeSelf;
