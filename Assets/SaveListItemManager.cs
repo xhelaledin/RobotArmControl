@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using System;
+using System.Collections;
 
 public class SaveListItemManager : MonoBehaviour
 {
@@ -27,6 +28,8 @@ public class SaveListItemManager : MonoBehaviour
     private SaveListManager saveListManager;
     private ListManager listManager;
     private bool expanded = false;
+
+    private Coroutine _rebuildCoroutine;
 
     public void SetData(string listName, SaveListData listData,
         Action<string> runAction,
@@ -64,8 +67,8 @@ public class SaveListItemManager : MonoBehaviour
 
         if (expanded)
             RefreshEntries();
-
-        ForceRebuild();
+        
+        RequestRebuild();
     }
 
     private void RefreshEntries()
@@ -79,11 +82,8 @@ public class SaveListItemManager : MonoBehaviour
             GameObject entryGO = Instantiate(entryPrefab, entriesContainer);
             SaveListEntryManager entry = entryGO.GetComponent<SaveListEntryManager>();
             
-            // ✅ Pass the required arguments now
             entry.Setup(saveRef, i, this, saveListManager, listManager);
         }
-
-        ForceRebuild();
     }
 
     public void MoveEntry(int index, int direction)
@@ -96,7 +96,9 @@ public class SaveListItemManager : MonoBehaviour
         currentListData.saves.Insert(newIndex, item);
 
         saveListManager.SaveLists();
-        RefreshEntries();
+        
+        RefreshEntries(); 
+        RequestRebuild();
     }
 
     public void RemoveEntry(int index)
@@ -106,11 +108,17 @@ public class SaveListItemManager : MonoBehaviour
         currentListData.saves.RemoveAt(index);
         saveListManager.SaveLists();
 
-        RefreshEntries();
         savesCountText.text = $"{currentListData.saves.Count} saves";
-        ForceRebuild();
 
-        ToggleExpand();
+        if (currentListData.saves.Count == 0 && expanded)
+        {
+            ToggleExpand();
+        }
+        else if (expanded)
+        {
+            RefreshEntries();
+            RequestRebuild();
+        }
     }
 
     public void UpdateDelay(int index, int newDelayMs)
@@ -124,18 +132,45 @@ public class SaveListItemManager : MonoBehaviour
     {
         if (index < 0 || index >= currentListData.saves.Count) return;
 
-        // Stop coroutine before showing a single entry
         saveListManager.StopActiveCoroutine();
 
         var save = currentListData.saves[index];
         listManager.ApplySavedValuesExternal(save.values.ToArray(), false);
     }
 
-    private void ForceRebuild()
+    private void RequestRebuild()
     {
-        LayoutRebuilder.ForceRebuildLayoutImmediate(entriesContainer.GetComponent<RectTransform>());
-        LayoutRebuilder.ForceRebuildLayoutImmediate(GetComponent<RectTransform>());
-        if (parentListContainer != null)
+        if (_rebuildCoroutine != null)
+        {
+            StopCoroutine(_rebuildCoroutine);
+        }
+        
+        if (gameObject.activeInHierarchy)
+        {
+            _rebuildCoroutine = StartCoroutine(RebuildLayoutAtEndOfFrame());
+        }
+    }
+
+    private IEnumerator RebuildLayoutAtEndOfFrame()
+    {
+        yield return new WaitForEndOfFrame();
+
+
+        if (entriesContainer != null && entriesContainer.gameObject.activeInHierarchy)
+        {
+            LayoutRebuilder.ForceRebuildLayoutImmediate(entriesContainer.GetComponent<RectTransform>());
+        }
+
+        if (this != null && gameObject.activeInHierarchy)
+        {
+            LayoutRebuilder.ForceRebuildLayoutImmediate(GetComponent<RectTransform>());
+        }
+
+        if (parentListContainer != null && parentListContainer.gameObject.activeInHierarchy)
+        {
             LayoutRebuilder.ForceRebuildLayoutImmediate(parentListContainer.GetComponent<RectTransform>());
+        }
+
+        _rebuildCoroutine = null;
     }
 }
