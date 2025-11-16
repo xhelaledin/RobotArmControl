@@ -97,7 +97,7 @@ public class SaveListManager : MonoBehaviour
         RefreshUI();
     }
 
-    private void RefreshUI()
+    public void RefreshUI()
     {
         foreach (Transform child in listContent)
             Destroy(child.gameObject);

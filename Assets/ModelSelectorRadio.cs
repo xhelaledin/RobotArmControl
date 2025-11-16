@@ -9,6 +9,7 @@ public class ModelSelectorRadio : MonoBehaviour
     public RobotArmSelection robotArmSelection;
     public SaveManager saveManager;
     public ListManager listManager;
+    public SaveListManager saveListManager;
     public SliderScaleManager sliderScaleManager;
     public GameObject settingsPanel;
 
@@ -88,6 +89,7 @@ public class ModelSelectorRadio : MonoBehaviour
         robotArmSelection?.UpdateSelectedModelIndex();
         saveManager?.UpdateSelectedModelIndex(currentIndex);
         listManager?.PopulateList();
+        saveListManager.RefreshUI();
 
         // 5. Swap preview sprite
         if (previewImage != null && currentIndex >= 0 && currentIndex < modelSprites.Count)
