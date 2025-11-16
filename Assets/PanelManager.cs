@@ -51,9 +51,31 @@ public class PanelManager : MonoBehaviour
 
             if (active)
             {
-                // This is the top-most active panel, hide it
-                try { h.Hide(); } catch { /* swallow errors on hide */ }
-                history.RemoveAt(i); // Remove after hiding
+                // This is the top-most active panel.
+                // Store a reference to it *before* hiding.
+                var panelToHide = h;
+
+                // Hide it. This 'Hide' delegate might modify the 'history' list
+                // (e.g., by calling PushPanel for another panel).
+                try { panelToHide.Hide(); } catch { /* swallow errors on hide */ }
+
+                // --- MODIFIED LOGIC ---
+                // We only remove the panel from the history IF the 'Hide' call
+                // did NOT already manage the stack (e.g., by re-pushing itself or another panel).
+                // We check this by seeing if the panel we intended to hide is
+                // still at the same index.
+                if (history.Count > i && history[i] == panelToHide)
+                {
+                    // The panel is still here. This means h.Hide() was a simple
+                    // "hide" and did not manage the stack. We must remove it.
+                    history.RemoveAt(i);
+                }
+                else
+                {
+                    // The panel at index 'i' is no longer 'panelToHide'.
+                    // This means h.Hide() *did* modify the history.
+                    // The stack is already managed, so we do nothing.
+                }
                 return; // We are done
             }
             else

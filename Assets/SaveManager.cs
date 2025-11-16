@@ -76,6 +76,8 @@ public class SaveManager : MonoBehaviour
     private int selectedModelIndex; // Model index
 
     private SaveDataWrapper lastImportedData;
+    
+    public ListManager listManager; // Assign in inspector
 
     void Start()
     {
@@ -137,7 +139,7 @@ public class SaveManager : MonoBehaviour
         HidePanel();
     }
 
-    private string GenerateUniqueName(string baseName, HashSet<string> existingNames)
+    public string GenerateUniqueName(string baseName, HashSet<string> existingNames)
     {
         if (!existingNames.Contains(baseName)) return baseName;
 
@@ -152,7 +154,7 @@ public class SaveManager : MonoBehaviour
         return newName;
     }
 
-    private string GenerateDefaultName()
+    public string GenerateDefaultName()
     {
         int count = 1;
         HashSet<string> names = GetAllSaveNames(selectedModelIndex);
@@ -167,7 +169,7 @@ public class SaveManager : MonoBehaviour
         return name;
     }
 
-    private HashSet<string> GetAllSaveNames(int modelIndex)
+    public HashSet<string> GetAllSaveNames(int modelIndex)
     {
         string raw = PlayerPrefs.GetString(GetSaveListKey(modelIndex), "");
         return new HashSet<string>(raw.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries).Select(n => n.Trim()));
@@ -207,6 +209,49 @@ public class SaveManager : MonoBehaviour
         PlayerPrefs.Save();
 
         Debug.Log($"Saved data: {saveString}");
+    }
+
+    /// <summary>
+    /// Saves a new entry using custom values passed as parameters, 
+    /// instead of reading from the current sliders.
+    /// </summary>
+    /// <param name="modelIndex">The model index to save under.</param>
+    /// <param name="saveName">The unique name for the save.</param>
+    /// <param name="customSaveValues">The list of values (including claw state) to save.</param>
+    public void SaveCustomArray(int modelIndex, string saveName, List<int> customSaveValues)
+    {
+        // 1. Add name to the list of save names
+        var names = GetAllSaveNames(modelIndex).ToList();
+        if (!names.Contains(saveName))
+        {
+            names.Add(saveName);
+            PlayerPrefs.SetString(GetSaveListKey(modelIndex), string.Join(",", names));
+        }
+
+        // 2. Get current date
+        string dateString = DateTime.Now.ToString("dddd, dd.MM.yyyy - HH·mm");
+
+        // 3. Create the save string using the provided values
+        // The customSaveValues list already includes the claw state
+        string saveString = $"{saveName}:{string.Join(",", customSaveValues)};{dateString}";
+        
+        // 4. Save to PlayerPrefs
+        PlayerPrefs.SetString(GetSaveKey(modelIndex, saveName), saveString);
+        PlayerPrefs.Save();
+
+        Debug.Log($"Saved custom data: {saveString}");
+        
+        // 5. Notify the SaveListManager to refresh its view
+        // (This is good practice so the new save appears immediately)
+        var saveListManager = FindFirstObjectByType<SaveListManager>();
+        if (saveListManager != null)
+        {
+            // Assuming SaveListManager has a method to reload all data
+            // Based on your import code, this seems correct.
+            saveListManager.LoadFromPlayerPrefs(); 
+        }
+        
+        listManager.PopulateList();
     }
 
     // This method is now called by PanelManager's 'hide' delegate
