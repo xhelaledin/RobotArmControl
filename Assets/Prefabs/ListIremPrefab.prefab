@@ -1126,6 +1126,7 @@ MonoBehaviour:
   viewButton: {fileID: 421716969905884976}
   deleteButton: {fileID: 1619293666968324796}
   expandButton: {fileID: 9119454697826118252}
+  expandIconTransform: {fileID: 8264282771885020317}
   entriesContainer: {fileID: 3069339897567194974}
   entryPrefab: {fileID: 7717527321039825574, guid: 1937f82db570ce642921cd3bcf820ad0, type: 3}
   parentListContainer: {fileID: 0}

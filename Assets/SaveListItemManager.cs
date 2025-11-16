@@ -16,6 +16,8 @@ public class SaveListItemManager : MonoBehaviour
     public Button deleteButton;
     public Button expandButton;
 
+    public Transform expandIconTransform;
+
     [Header("Entries UI")]
     public Transform entriesContainer;
     public GameObject entryPrefab;
@@ -64,6 +66,15 @@ public class SaveListItemManager : MonoBehaviour
     {
         expanded = !expanded;
         entriesContainer.gameObject.SetActive(expanded);
+
+        if (expandIconTransform != null)
+        {
+            // Use a ternary operator to set the Z rotation: 180 if expanded, 0 if shrunk
+            float targetZRotation = expanded ? 180f : 0f;
+            
+            // Apply the rotation
+            expandIconTransform.eulerAngles = new Vector3(0, 0, targetZRotation);
+        }
 
         if (expanded)
             RefreshEntries();
