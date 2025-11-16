@@ -91,6 +91,9 @@ public class RobotArmSelection : MonoBehaviour
 
     void Start()
     {
+        QualitySettings.vSyncCount = 0;
+        Application.targetFrameRate = 60;
+
         OnModelSelected(selectedModelIndex);
 
         // Subscribe to slider value changes and mark touched on user input
