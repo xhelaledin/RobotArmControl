@@ -12,6 +12,7 @@ public class SliderGroup
     public GameObject settingsPanel;
     public Sprite spriteClosed;
     public Sprite spriteOpened;
+    public Transform expandIconTransform;
 
     [Header("Fields")]
     public TMP_InputField minValueField;
@@ -49,6 +50,7 @@ public class SliderValueConfig : MonoBehaviour
     public GameObject buttonsSettingsPanel;
     public Sprite buttonsSpriteClosed;
     public Sprite buttonsSpriteOpened;
+    public Transform buttonsExpandIcon;
 
     // --- NEW: Continuous send controls ---
     [Header("Send Continuously Controls")]
@@ -98,6 +100,11 @@ public class SliderValueConfig : MonoBehaviour
                 if (img != null && group.spriteClosed != null)
                     img.sprite = group.isAccordionOpen ? group.spriteOpened : group.spriteClosed;
 
+                if (group.expandIconTransform != null)
+                {
+                    group.expandIconTransform.eulerAngles = new Vector3(0, 0, group.isAccordionOpen ? 180f : 0f);
+                }
+                
                 group.mainButton.onClick.AddListener(() => ToggleGroup(group));
             }
 
@@ -114,6 +121,11 @@ public class SliderValueConfig : MonoBehaviour
             var img = buttonsHeaderButton.GetComponent<Image>();
             if (img != null && buttonsSpriteClosed != null)
                 img.sprite = isButtonsAccordionOpen ? buttonsSpriteOpened : buttonsSpriteClosed;
+
+            if (buttonsExpandIcon != null)
+            {
+                buttonsExpandIcon.eulerAngles = new Vector3(0, 0, isButtonsAccordionOpen ? 180f : 0f);
+            }
 
             buttonsHeaderButton.onClick.AddListener(ToggleButtonsAccordion);
         }
@@ -207,6 +219,12 @@ public class SliderValueConfig : MonoBehaviour
         {
             img.sprite = group.isAccordionOpen ? group.spriteOpened : group.spriteClosed;
         }
+
+        if (group.expandIconTransform != null)
+        {
+            float targetZ = group.isAccordionOpen ? 180f : 0f;
+            group.expandIconTransform.eulerAngles = new Vector3(0, 0, targetZ);
+        }
     }
 
     void ToggleButtonsAccordion()
@@ -220,6 +238,12 @@ public class SliderValueConfig : MonoBehaviour
         if (img != null)
         {
             img.sprite = isButtonsAccordionOpen ? buttonsSpriteOpened : buttonsSpriteClosed;
+        }
+
+        if (buttonsExpandIcon != null)
+        {
+            float targetZ = isButtonsAccordionOpen ? 180f : 0f;
+            buttonsExpandIcon.eulerAngles = new Vector3(0, 0, targetZ);
         }
     }
 
