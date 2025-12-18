@@ -3,6 +3,7 @@ using UnityEngine.UI;
 using TMPro;
 using System;
 using System.Collections;
+using System.Collections.Generic;
 
 public class SaveListItemManager : MonoBehaviour
 {
@@ -18,6 +19,12 @@ public class SaveListItemManager : MonoBehaviour
 
     public Transform expandIconTransform;
 
+    [Header("Sprites")]
+    public Sprite runNormalSprite;
+    public Sprite runSelectedSprite;
+    public Sprite viewNormalSprite;   
+    public Sprite viewSelectedSprite; 
+
     [Header("Entries UI")]
     public Transform entriesContainer;
     public GameObject entryPrefab;
@@ -32,6 +39,8 @@ public class SaveListItemManager : MonoBehaviour
     private bool expanded = false;
 
     private Coroutine _rebuildCoroutine;
+    
+    private List<SaveListEntryManager> spawnedEntries = new List<SaveListEntryManager>();
 
     public void SetData(string listName, SaveListData listData,
         Action<string> runAction,
@@ -54,12 +63,17 @@ public class SaveListItemManager : MonoBehaviour
         deleteButton.onClick.RemoveAllListeners();
         expandButton.onClick.RemoveAllListeners();
 
+        // These actions trigger HandleListAction in SaveListManager
         runButton.onClick.AddListener(() => runAction?.Invoke(currentListName));
         viewButton.onClick.AddListener(() => viewAction?.Invoke(currentListName));
         deleteButton.onClick.AddListener(() => deleteAction?.Invoke(currentListName));
         expandButton.onClick.AddListener(ToggleExpand);
 
         entriesContainer.gameObject.SetActive(false);
+        
+        // Ensure default state
+        SetRunButtonVisual(false);
+        SetViewButtonVisual(false);
     }
 
     private void ToggleExpand()
@@ -69,10 +83,7 @@ public class SaveListItemManager : MonoBehaviour
 
         if (expandIconTransform != null)
         {
-            // Use a ternary operator to set the Z rotation: 180 if expanded, 0 if shrunk
             float targetZRotation = expanded ? 180f : 0f;
-            
-            // Apply the rotation
             expandIconTransform.eulerAngles = new Vector3(0, 0, targetZRotation);
         }
 
@@ -87,6 +98,8 @@ public class SaveListItemManager : MonoBehaviour
         foreach (Transform child in entriesContainer)
             Destroy(child.gameObject);
 
+        spawnedEntries.Clear();
+
         for (int i = 0; i < currentListData.saves.Count; i++)
         {
             var saveRef = currentListData.saves[i];
@@ -94,8 +107,60 @@ public class SaveListItemManager : MonoBehaviour
             SaveListEntryManager entry = entryGO.GetComponent<SaveListEntryManager>();
             
             entry.Setup(saveRef, i, this, saveListManager, listManager);
+            spawnedEntries.Add(entry);
         }
     }
+
+    // --- Visual State Methods ---
+
+    public void SetRunButtonVisual(bool isActive)
+    {
+        if (runButton != null)
+        {
+            Image img = runButton.GetComponent<Image>();
+            if (img != null && runNormalSprite != null && runSelectedSprite != null)
+            {
+                img.sprite = isActive ? runSelectedSprite : runNormalSprite;
+            }
+        }
+    }
+
+    public void SetViewButtonVisual(bool isActive)
+    {
+        if (viewButton != null)
+        {
+            Image img = viewButton.GetComponent<Image>();
+            if (img != null && viewNormalSprite != null && viewSelectedSprite != null)
+            {
+                img.sprite = isActive ? viewSelectedSprite : viewNormalSprite;
+            }
+        }
+    }
+
+    public void HighlightEntryVisual(int index)
+    {
+        if (!expanded) return;
+
+        for (int i = 0; i < spawnedEntries.Count; i++)
+        {
+            if (spawnedEntries[i] != null)
+            {
+                // Highlights the view button of the specific entry
+                spawnedEntries[i].SetViewButtonVisual(i == index);
+            }
+        }
+    }
+
+    public void ResetAllEntriesVisuals()
+    {
+        foreach (var entry in spawnedEntries)
+        {
+            if (entry != null)
+                entry.SetViewButtonVisual(false);
+        }
+    }
+
+    // ----------------------------
 
     public void MoveEntry(int index, int direction)
     {
@@ -107,7 +172,6 @@ public class SaveListItemManager : MonoBehaviour
         currentListData.saves.Insert(newIndex, item);
 
         saveListManager.SaveLists();
-        
         RefreshEntries(); 
         RequestRebuild();
     }
@@ -143,45 +207,35 @@ public class SaveListItemManager : MonoBehaviour
     {
         if (index < 0 || index >= currentListData.saves.Count) return;
 
+        // Stop any running sequence
         saveListManager.StopActiveCoroutine();
+        
+        // Reset all visuals (headers and items)
+        saveListManager.ResetAllVisuals(); 
+        
+        // --- CHANGE: We removed SetViewButtonVisual(true) here ---
+        // The parent header button will now remain unpressed.
+
+        // Highlight this specific entry
+        HighlightEntryVisual(index);
 
         var save = currentListData.saves[index];
+        // Apply values: False = No Bluetooth (View only)
         listManager.ApplySavedValuesExternal(save.values.ToArray(), false);
     }
 
     private void RequestRebuild()
     {
-        if (_rebuildCoroutine != null)
-        {
-            StopCoroutine(_rebuildCoroutine);
-        }
-        
-        if (gameObject.activeInHierarchy)
-        {
-            _rebuildCoroutine = StartCoroutine(RebuildLayoutAtEndOfFrame());
-        }
+        if (_rebuildCoroutine != null) StopCoroutine(_rebuildCoroutine);
+        if (gameObject.activeInHierarchy) _rebuildCoroutine = StartCoroutine(RebuildLayoutAtEndOfFrame());
     }
 
     private IEnumerator RebuildLayoutAtEndOfFrame()
     {
         yield return new WaitForEndOfFrame();
-
-
-        if (entriesContainer != null && entriesContainer.gameObject.activeInHierarchy)
-        {
-            LayoutRebuilder.ForceRebuildLayoutImmediate(entriesContainer.GetComponent<RectTransform>());
-        }
-
-        if (this != null && gameObject.activeInHierarchy)
-        {
-            LayoutRebuilder.ForceRebuildLayoutImmediate(GetComponent<RectTransform>());
-        }
-
-        if (parentListContainer != null && parentListContainer.gameObject.activeInHierarchy)
-        {
-            LayoutRebuilder.ForceRebuildLayoutImmediate(parentListContainer.GetComponent<RectTransform>());
-        }
-
+        if (entriesContainer != null) LayoutRebuilder.ForceRebuildLayoutImmediate(entriesContainer.GetComponent<RectTransform>());
+        if (this != null) LayoutRebuilder.ForceRebuildLayoutImmediate(GetComponent<RectTransform>());
+        if (parentListContainer != null) LayoutRebuilder.ForceRebuildLayoutImmediate(parentListContainer.GetComponent<RectTransform>());
         _rebuildCoroutine = null;
     }
 }

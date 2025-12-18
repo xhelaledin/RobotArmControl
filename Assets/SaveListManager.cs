@@ -27,9 +27,10 @@ public class SaveListManager : MonoBehaviour
 
     private Coroutine activeCoroutine;
     private string activeListName;
-    private bool activeRunCommand;
+    
+    // Track active UI managers to update visuals during runtime
+    private Dictionary<string, SaveListItemManager> activeItemManagers = new Dictionary<string, SaveListItemManager>();
 
-    // CHANGED: Moved initialization to Awake so data is ready before other scripts access it in Start
     private void Awake()
     {
         currentModelIndex = PlayerPrefs.GetInt("SelectedModelIndex", 0);
@@ -50,13 +51,11 @@ public class SaveListManager : MonoBehaviour
                 }
             });
 
-        // Ensure lists are loaded immediately when object initializes
         LoadLists();
     }
 
     private void Start()
     {
-        // UI Refresh can stay in Start, or run after Awake
         RefreshUI();
     }
 
@@ -83,7 +82,6 @@ public class SaveListManager : MonoBehaviour
             }
         }
 
-        // Ensure keys 0-3 always exist to prevent KeyNotFoundException
         for (int i = 0; i <= 3; i++)
             if (!saveListsGrouped.ContainsKey(i))
                 saveListsGrouped[i] = new();
@@ -98,8 +96,6 @@ public class SaveListManager : MonoBehaviour
 
     public void ShowPanel()
     {
-        StopActiveCoroutine();
-
         currentModelIndex = PlayerPrefs.GetInt("SelectedModelIndex", 0);
         listPanel.SetActive(true);
         RefreshUI();
@@ -107,16 +103,16 @@ public class SaveListManager : MonoBehaviour
 
     public void RefreshUI()
     {
-        // Safety: ensure dictionary is populated if accessed externally before Awake finished (rare but possible)
         if (saveListsGrouped == null || !saveListsGrouped.ContainsKey(0))
             LoadLists();
 
         foreach (Transform child in listContent)
             Destroy(child.gameObject);
+        
+        activeItemManagers.Clear();
 
         currentModelIndex = PlayerPrefs.GetInt("SelectedModelIndex", 0);
 
-        // Safety check: ensure current index exists
         if (!saveListsGrouped.ContainsKey(currentModelIndex))
             saveListsGrouped[currentModelIndex] = new Dictionary<string, SaveListData>();
 
@@ -138,47 +134,83 @@ public class SaveListManager : MonoBehaviour
                 manager.SetData(
                     kvp.Key,
                     kvp.Value,
-                    (name) => ToggleRunList(name, true),
-                    (name) => ToggleRunList(name, false),
+                    (name) => HandleListAction(name, true),  // True = Send Bluetooth (Run)
+                    (name) => HandleListAction(name, false), // False = No Bluetooth (View)
                     DeleteList,
                     listManager,
                     this
                 );
+
+                activeItemManagers[kvp.Key] = manager;
             }
         }
 
         LayoutRebuilder.ForceRebuildLayoutImmediate(listContent.GetComponent<RectTransform>());
     }
 
-    // --- Coroutine Handling ---
-    private void ToggleRunList(string listName, bool runCommand)
-    {
-        if (activeCoroutine != null && activeListName == listName && activeRunCommand == runCommand)
-        {
-            StopActiveCoroutine();
-            return;
-        }
+    // --- Action Handling ---
 
+    private void HandleListAction(string listName, bool isRunAction)
+    {
+        // 1. Stop any existing coroutine
         StopActiveCoroutine();
 
+        // 2. Reset visuals of ALL lists (including the current one briefly, to clean slate)
+        foreach (var kvp in activeItemManagers)
+        {
+            kvp.Value.SetRunButtonVisual(false);
+            kvp.Value.SetViewButtonVisual(false);
+            kvp.Value.ResetAllEntriesVisuals();
+        }
+
+        // 3. Get current manager
+        if (!activeItemManagers.ContainsKey(listName)) return;
+        SaveListItemManager uiManager = activeItemManagers[listName];
+
+        // 4. Set visual state based on which button was clicked
+        // Run Button clicked -> Run=Active, View=Inactive
+        // View Button clicked -> Run=Inactive, View=Active
+        uiManager.SetRunButtonVisual(isRunAction);
+        uiManager.SetViewButtonVisual(!isRunAction);
+
+        // 5. Start Sequence
+        // We pass 'isRunAction' as the 'sendBluetooth' flag.
+        // True = Run (Visuals + Bluetooth)
+        // False = View (Visuals only)
         activeListName = listName;
-        activeRunCommand = runCommand;
-        activeCoroutine = StartCoroutine(RunSavesCoroutine(listName, 1f, runCommand));
+        activeCoroutine = StartCoroutine(RunSavesCoroutine(listName, isRunAction));
     }
 
-    private IEnumerator RunSavesCoroutine(string listName, float delay, bool runCommand)
+    private IEnumerator RunSavesCoroutine(string listName, bool sendBluetooth)
     {
         currentModelIndex = PlayerPrefs.GetInt("SelectedModelIndex", 0);
         if (!saveListsGrouped[currentModelIndex].ContainsKey(listName)) yield break;
 
+        SaveListItemManager uiManager = null;
+        if (activeItemManagers.ContainsKey(listName))
+            uiManager = activeItemManagers[listName];
+
         var saves = saveListsGrouped[currentModelIndex][listName].saves;
 
-        foreach (var save in saves)
+        for (int i = 0; i < saves.Count; i++)
         {
-            listManager.ApplySavedValuesExternal(save.values.ToArray(), runCommand);
+            var save = saves[i];
+
+            // Highlight the specific entry being shown
+            if (uiManager != null)
+                uiManager.HighlightEntryVisual(i);
+
+            // Apply values. 
+            // If sendBluetooth is true, it moves model + sends commands.
+            // If sendBluetooth is false, it only moves model.
+            listManager.ApplySavedValuesExternal(save.values.ToArray(), sendBluetooth); 
+            
             yield return new WaitForSeconds(save.delayMs / 1000f);
         }
 
+        // Coroutine finished naturally. 
+        // We leave the buttons "pressed" and the last entry highlighted so the user knows where it stopped.
+        
         activeCoroutine = null;
         activeListName = null;
     }
@@ -189,7 +221,23 @@ public class SaveListManager : MonoBehaviour
         {
             StopCoroutine(activeCoroutine);
             activeCoroutine = null;
-            activeListName = null;
+        }
+        activeListName = null;
+    }
+
+    // Call this from RobotArmSelection when resetting/moving manually to clean up UI
+    public void ResetAllVisuals()
+    {
+        StopActiveCoroutine();
+
+        foreach (var manager in activeItemManagers.Values)
+        {
+            if (manager != null)
+            {
+                manager.SetRunButtonVisual(false);
+                manager.SetViewButtonVisual(false);
+                manager.ResetAllEntriesVisuals();
+            }
         }
     }
 
@@ -197,7 +245,6 @@ public class SaveListManager : MonoBehaviour
     {
         currentModelIndex = PlayerPrefs.GetInt("SelectedModelIndex", 0);
         
-        // Safety check
         if (!saveListsGrouped.ContainsKey(currentModelIndex)) 
             saveListsGrouped[currentModelIndex] = new Dictionary<string, SaveListData>();
 
@@ -219,7 +266,6 @@ public class SaveListManager : MonoBehaviour
     {
         currentModelIndex = PlayerPrefs.GetInt("SelectedModelIndex", 0);
         
-        // Safety check
         if (!saveListsGrouped.ContainsKey(currentModelIndex)) 
             saveListsGrouped[currentModelIndex] = new Dictionary<string, SaveListData>();
 

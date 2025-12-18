@@ -9,10 +9,15 @@ public class SaveListEntryManager : MonoBehaviour
     public TMP_Text valuesText;
     public TMP_InputField delayInput;
 
+    [Header("Buttons")]
     public Button viewButton;
     public Button moveUpButton;
     public Button moveDownButton;
     public Button removeButton;
+
+    [Header("Sprites")]
+    public Sprite viewNormalSprite;
+    public Sprite viewSelectedSprite;
 
     private SaveReference saveRef;
     private int index;
@@ -45,6 +50,20 @@ public class SaveListEntryManager : MonoBehaviour
         removeButton.onClick.AddListener(() => parentList.RemoveEntry(index));
 
         delayInput.onEndEdit.AddListener(OnDelayChanged);
+
+        SetViewButtonVisual(false);
+    }
+
+    public void SetViewButtonVisual(bool isActive)
+    {
+        if (viewButton != null)
+        {
+            Image img = viewButton.GetComponent<Image>();
+            if (img != null && viewNormalSprite != null && viewSelectedSprite != null)
+            {
+                img.sprite = isActive ? viewSelectedSprite : viewNormalSprite;
+            }
+        }
     }
 
     private void OnDelayChanged(string newValue)

@@ -298,6 +298,7 @@ MonoBehaviour:
   m_VerticalAlignment: 512
   m_textAlignment: 65535
   m_characterSpacing: 0
+  m_characterHorizontalScale: 1
   m_wordSpacing: 0
   m_lineSpacing: 0
   m_lineSpacingMax: 0
@@ -434,6 +435,7 @@ MonoBehaviour:
   m_VerticalAlignment: 256
   m_textAlignment: 65535
   m_characterSpacing: 0
+  m_characterHorizontalScale: 1
   m_wordSpacing: 0
   m_lineSpacing: 0
   m_lineSpacingMax: 0
@@ -690,6 +692,7 @@ MonoBehaviour:
   m_VerticalAlignment: 512
   m_textAlignment: 65535
   m_characterSpacing: 0
+  m_characterHorizontalScale: 1
   m_wordSpacing: 0
   m_lineSpacing: 0
   m_lineSpacingMax: 0
@@ -1127,6 +1130,10 @@ MonoBehaviour:
   deleteButton: {fileID: 1619293666968324796}
   expandButton: {fileID: 9119454697826118252}
   expandIconTransform: {fileID: 8264282771885020317}
+  runNormalSprite: {fileID: 21300000, guid: 1c77a32f0b90d5b45b87f93357b437b2, type: 3}
+  runSelectedSprite: {fileID: 21300000, guid: c6aea3b0c7f367f46bc9313e1f943b36, type: 3}
+  viewNormalSprite: {fileID: 21300000, guid: f8fea82121ab29442bf1c7ef5bb9d87b, type: 3}
+  viewSelectedSprite: {fileID: 21300000, guid: 5d591f36471b0d54d88458e2ec8b10dc, type: 3}
   entriesContainer: {fileID: 3069339897567194974}
   entryPrefab: {fileID: 7717527321039825574, guid: 1937f82db570ce642921cd3bcf820ad0, type: 3}
   parentListContainer: {fileID: 0}
