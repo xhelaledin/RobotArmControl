@@ -25,8 +25,9 @@ public class RobotArmSelection : MonoBehaviour
 
     private Slider[] _sliders;
 
-    public int openValue = 105;
-    public int closeValue = 177;
+    // These now default to values from the Registry in Awake
+    public int openValue;
+    public int closeValue;
 
     [Header("Continuous Send Settings")]
     public LeanToggle sendContinuouslyToggle;
@@ -51,7 +52,12 @@ public class RobotArmSelection : MonoBehaviour
 
     private void Awake()
     {
-        selectedModelIndex = PlayerPrefs.GetInt("SelectedModelIndex", 0);
+        // Use Registry to get the selected model (Default is 0)
+        selectedModelIndex = PlayerPrefsKeyRegistry.GetInt("SelectedModelIndex");
+
+        // Load Open/Close button defaults from Registry
+        openValue = PlayerPrefsKeyRegistry.GetInt("OpenButtonValue");
+        closeValue = PlayerPrefsKeyRegistry.GetInt("CloseButtonValue");
 
         _sliders = new[]
         {
@@ -67,8 +73,9 @@ public class RobotArmSelection : MonoBehaviour
 
         ResetSliderTouchedFlags();
 
-        sendContinuously = PlayerPrefs.GetInt("SendContinuously", 0) == 1;
-        sendIntervalStep = PlayerPrefs.GetInt("SendIntervalStep", 1);
+        // Use Registry for Continuous Send settings
+        sendContinuously = PlayerPrefsKeyRegistry.GetInt("SendContinuously") == 1;
+        sendIntervalStep = PlayerPrefsKeyRegistry.GetInt("SendIntervalStep");
 
         if (sendIntervalInput != null)
             sendIntervalInput.text = sendIntervalStep.ToString();
@@ -109,7 +116,7 @@ public class RobotArmSelection : MonoBehaviour
         slider4.GetComponent<EventTrigger>().triggers.Add(CreatePointerUpTrigger(() => OnSliderReleased(3)));
         slider5.GetComponent<EventTrigger>().triggers.Add(CreatePointerUpTrigger(() => OnSliderReleased(4)));
 
-        // *** Load saved slider configs from PlayerPrefs and apply ***
+        // *** Load saved slider configs from Registry and apply ***
         LoadAndApplySavedSliderConfigs();
 
         // Then move model parts to saved start positions
@@ -123,16 +130,18 @@ public class RobotArmSelection : MonoBehaviour
     {
         for (int i = 0; i < _sliders.Length; i++)
         {
-            // Keys are assumed "Slider{N}_Min", "Slider{N}_Max", "Slider{N}_Start", "Slider{N}_Flip"
+            // UPDATED: Keys must match the Registry exactly
+            // Registry uses "SliderX_FlipDirection", not "SliderX_Flip"
             string minKey = $"Slider{i + 1}_Min";
             string maxKey = $"Slider{i + 1}_Max";
             string startKey = $"Slider{i + 1}_Start";
-            string flipKey = $"Slider{i + 1}_Flip";
+            string flipKey = $"Slider{i + 1}_FlipDirection"; 
 
-            int min = PlayerPrefs.GetInt(minKey, 0);
-            int max = PlayerPrefs.GetInt(maxKey, 180);
-            int start = PlayerPrefs.GetInt(startKey, 90);
-            bool flip = PlayerPrefs.GetInt(flipKey, 0) == 1;
+            // Use PlayerPrefsKeyRegistry to fetch values with correct defaults
+            int min = PlayerPrefsKeyRegistry.GetInt(minKey);
+            int max = PlayerPrefsKeyRegistry.GetInt(maxKey);
+            int start = PlayerPrefsKeyRegistry.GetInt(startKey);
+            bool flip = PlayerPrefsKeyRegistry.GetInt(flipKey) == 1;
 
             ConfigureSliderValue(i, min, max, start, flip);
         }
@@ -174,6 +183,7 @@ public class RobotArmSelection : MonoBehaviour
         sendContinuously = on;
         sendIntervalStep = Mathf.Max(1, step);
 
+        // Standard PlayerPrefs Set remains (Registry doesn't handle setting)
         PlayerPrefs.SetInt("SendContinuously", on ? 1 : 0);
         PlayerPrefs.SetInt("SendIntervalStep", sendIntervalStep);
         PlayerPrefs.Save();
@@ -355,7 +365,8 @@ public class RobotArmSelection : MonoBehaviour
 
     public void UpdateSelectedModelIndex()
     {
-        selectedModelIndex = PlayerPrefs.GetInt("SelectedModelIndex", 0);
+        // Use Registry to get current index
+        selectedModelIndex = PlayerPrefsKeyRegistry.GetInt("SelectedModelIndex");
     }
 
     public void ConfigureSliderValue(int index, int min, int max, int start, bool flipDirection)
@@ -422,7 +433,7 @@ public class RobotArmSelection : MonoBehaviour
     {
         bluetoothCommandConstructor.ConstructOpenCommand(openValue.ToString());
 
-        int outlineValue = openClawOnStart ? 0 : 1; 
+        int outlineValue = openClawOnStart ? 0 : 1;
         switch (selectedModelIndex)
         {
             case 0: robotArmInputHandler4Parts.OpenClaw(outlineValue); break;
@@ -455,12 +466,12 @@ public class RobotArmSelection : MonoBehaviour
 
     public void MoveModelByStartValues()
     {
-        // Load floats, not ints, for slider start positions
-        int slider1Start = PlayerPrefs.GetInt("Slider1_Start", 90);
-        int slider2Start = PlayerPrefs.GetInt("Slider2_Start", 90);
-        int slider3Start = PlayerPrefs.GetInt("Slider3_Start", 90);
-        int slider4Start = PlayerPrefs.GetInt("Slider4_Start", 90);
-        int slider5Start = PlayerPrefs.GetInt("Slider5_Start", 90);
+        // Use Registry to get explicit start values
+        int slider1Start = PlayerPrefsKeyRegistry.GetInt("Slider1_Start");
+        int slider2Start = PlayerPrefsKeyRegistry.GetInt("Slider2_Start");
+        int slider3Start = PlayerPrefsKeyRegistry.GetInt("Slider3_Start");
+        int slider4Start = PlayerPrefsKeyRegistry.GetInt("Slider4_Start");
+        int slider5Start = PlayerPrefsKeyRegistry.GetInt("Slider5_Start");
 
         // Set slider values directly, this moves the slider correctly
         slider1.value = slider1Start;
