@@ -488,6 +488,26 @@ public class RobotArmSelection : MonoBehaviour
         OnSliderValueChanged(4, slider5Start, 0);
 
         OpenClawOnStart();
+
+        // *** NEW: Sync buttons. Since we reset to start, no saved "Move" is currently active.
+        ResetAllSaveItemButtons();
+    }
+
+    // Helper to find all SaveItemManagers in the scene and uncheck their buttons
+    private void ResetAllSaveItemButtons()
+    {
+        // FindObjectsByType works in newer Unity versions. 
+        // If you are on an older version, use FindObjectsOfType<SaveItemManager>()
+        SaveItemManager[] items = FindObjectsByType<SaveItemManager>(FindObjectsSortMode.None);
+        
+        foreach (var item in items)
+        {
+            if (item != null)
+            {
+                item.SetRunButtonNormal();
+                item.SetViewButtonNormal();
+            }
+        }
     }
 
     public void MoveModelAfterStartPosEdit()

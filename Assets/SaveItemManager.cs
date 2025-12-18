@@ -60,21 +60,25 @@ public class SaveItemManager : MonoBehaviour
     // Methods to update button sprites externally
     public void SetRunButtonNormal()
     {
-        runButton.GetComponent<Image>().sprite = runNormalSprite;
+        if(runButton != null && runNormalSprite != null)
+             runButton.GetComponent<Image>().sprite = runNormalSprite;
     }
 
     public void SetRunButtonSelected()
     {
-        runButton.GetComponent<Image>().sprite = runSelectedSprite;
+        if(runButton != null && runSelectedSprite != null)
+            runButton.GetComponent<Image>().sprite = runSelectedSprite;
     }
 
     public void SetViewButtonNormal()
     {
-        saveButton.GetComponent<Image>().sprite = viewNormalSprite;
+        if(saveButton != null && viewNormalSprite != null)
+            saveButton.GetComponent<Image>().sprite = viewNormalSprite;
     }
 
     public void SetViewButtonSelected()
     {
-        saveButton.GetComponent<Image>().sprite = viewSelectedSprite;
+        if(saveButton != null && viewSelectedSprite != null)
+            saveButton.GetComponent<Image>().sprite = viewSelectedSprite;
     }
 }
