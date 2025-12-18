@@ -89,7 +89,10 @@ public class ModelSelectorRadio : MonoBehaviour
         robotArmSelection?.UpdateSelectedModelIndex();
         saveManager?.UpdateSelectedModelIndex(currentIndex);
         listManager?.PopulateList();
-        saveListManager.RefreshUI();
+        
+        // This is safe to call now because SaveListManager uses Awake() to init
+        if(saveListManager != null)
+            saveListManager.RefreshUI();
 
         // 5. Swap preview sprite
         if (previewImage != null && currentIndex >= 0 && currentIndex < modelSprites.Count)

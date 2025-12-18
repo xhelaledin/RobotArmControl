@@ -130,8 +130,9 @@ public class SliderValueConfig : MonoBehaviour
             buttonsHeaderButton.onClick.AddListener(ToggleButtonsAccordion);
         }
 
-        int open = PlayerPrefs.GetInt(openKey, 105);
-        int close = PlayerPrefs.GetInt(closeKey, 177);
+        // USING REGISTRY FOR DEFAULTS
+        int open = PlayerPrefsKeyRegistry.GetInt(openKey);
+        int close = PlayerPrefsKeyRegistry.GetInt(closeKey);
         robotArmSelection?.ConfigureOpenCloseValues(open, close);
 
         if (openButtonValueIn) openButtonValueIn.text = open.ToString();
@@ -140,9 +141,9 @@ public class SliderValueConfig : MonoBehaviour
         if (openButtonValueIn) openButtonValueIn.onEndEdit.AddListener(_ => SaveButtonValues());
         if (closeButtonValueIn) closeButtonValueIn.onEndEdit.AddListener(_ => SaveButtonValues());
 
-        // --- NEW: Load continuous send settings ---
-        bool sendContinuously = PlayerPrefs.GetInt(SendContinuouslyKey, 0) == 1;
-        int sendStep = PlayerPrefs.GetInt(SendIntervalStepKey, 1);
+        // USING REGISTRY FOR DEFAULTS
+        bool sendContinuously = PlayerPrefsKeyRegistry.GetInt(SendContinuouslyKey) == 1;
+        int sendStep = PlayerPrefsKeyRegistry.GetInt(SendIntervalStepKey);
 
         if (sendContinuouslyToggle != null)
         {
@@ -194,7 +195,7 @@ public class SliderValueConfig : MonoBehaviour
 
         PanelManager.Instance.PushPanel(
             key: sliderConfigPanel,
-            hide: () => HideSliderConfigPanel(), // Call the renamed method
+            hide: () => HideSliderConfigPanel(), 
             isActive: () => sliderConfigPanel != null && sliderConfigPanel.activeSelf
         );
         
@@ -251,9 +252,10 @@ public class SliderValueConfig : MonoBehaviour
     {
         isProgrammatic = true;
 
-        int min = PlayerPrefs.GetInt(group.minKey, 0);
-        int max = PlayerPrefs.GetInt(group.maxKey, 180);
-        int start = PlayerPrefs.GetInt(group.startKey, 90);
+        // USING REGISTRY FOR DEFAULTS
+        int min = PlayerPrefsKeyRegistry.GetInt(group.minKey);
+        int max = PlayerPrefsKeyRegistry.GetInt(group.maxKey);
+        int start = PlayerPrefsKeyRegistry.GetInt(group.startKey);
 
         if (group.minValueField != null)
             group.minValueField.text = min.ToString();
@@ -268,7 +270,8 @@ public class SliderValueConfig : MonoBehaviour
 
         if (group.directionOptions != null && group.directionOptions.Count > 0)
         {
-            int dirIndex = PlayerPrefs.GetInt(group.flipKey, 0);
+            // USING REGISTRY FOR DEFAULTS
+            int dirIndex = PlayerPrefsKeyRegistry.GetInt(group.flipKey);
             group.currentDirectionIndex = dirIndex;
 
             for (int i = 0; i < group.directionOptions.Count; i++)

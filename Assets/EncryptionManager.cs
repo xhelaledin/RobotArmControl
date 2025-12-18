@@ -23,7 +23,8 @@ public class EncryptionManager : MonoBehaviour
 
     private void Start()
     {
-        encryptionTypeIndex = PlayerPrefs.GetInt("EncryptionTypeIndex", 0);
+        // USING REGISTRY FOR DEFAULTS
+        encryptionTypeIndex = PlayerPrefsKeyRegistry.GetInt("EncryptionTypeIndex");
 
         if (encryptionDropdown != null)
         {
@@ -31,10 +32,11 @@ public class EncryptionManager : MonoBehaviour
             encryptionDropdown.onChangedValue += OnEncryptionChanged;
         }
 
+        // USING REGISTRY FOR DEFAULTS
         if (aesManager != null)
-            aesManager.SetKey(PlayerPrefs.GetString("AESKey", ""));
+            aesManager.SetKey(PlayerPrefsKeyRegistry.GetString("AESKey"));
         if (desManager != null)
-            desManager.SetKey(PlayerPrefs.GetString("DESKey", ""));
+            desManager.SetKey(PlayerPrefsKeyRegistry.GetString("DESKey"));
 
         if (keyInputField != null)
         {
@@ -106,10 +108,11 @@ public class EncryptionManager : MonoBehaviour
         // Otherwise, show input field and load saved key
         keyInputField.gameObject.SetActive(true);
 
+        // USING REGISTRY FOR DEFAULTS
         string currentKey = encryptionTypeIndex switch
         {
-            1 => PlayerPrefs.GetString("AESKey", ""),
-            2 => PlayerPrefs.GetString("DESKey", ""),
+            1 => PlayerPrefsKeyRegistry.GetString("AESKey"),
+            2 => PlayerPrefsKeyRegistry.GetString("DESKey"),
             _ => ""
         };
 
@@ -213,10 +216,11 @@ public class EncryptionManager : MonoBehaviour
         }
         else if (hasKey)
         {
+            // USING REGISTRY FOR DEFAULTS
             string key = encryptionTypeIndex switch
             {
-                1 => PlayerPrefs.GetString("AESKey", "[Hidden]"),
-                2 => PlayerPrefs.GetString("DESKey", "[Hidden]"),
+                1 => PlayerPrefsKeyRegistry.GetString("AESKey"),
+                2 => PlayerPrefsKeyRegistry.GetString("DESKey"),
                 _ => "[Unknown]"
             };
 

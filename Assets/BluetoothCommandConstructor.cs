@@ -260,19 +260,20 @@ public class BluetoothCommandConstructor : MonoBehaviour
 
     private void LoadCommandsFromPrefs()
     {
-        slider1Command = PlayerPrefs.GetString("Slider1_Command", "S1");
-        slider2Command = PlayerPrefs.GetString("Slider2_Command", "S2");
-        slider3Command = PlayerPrefs.GetString("Slider3_Command", "S3");
-        slider4Command = PlayerPrefs.GetString("Slider4_Command", "S4");
-        slider5Command = PlayerPrefs.GetString("Slider5_Command", "S5");
+        // USING REGISTRY FOR DEFAULTS
+        slider1Command = PlayerPrefsKeyRegistry.GetString("Slider1_Command");
+        slider2Command = PlayerPrefsKeyRegistry.GetString("Slider2_Command");
+        slider3Command = PlayerPrefsKeyRegistry.GetString("Slider3_Command");
+        slider4Command = PlayerPrefsKeyRegistry.GetString("Slider4_Command");
+        slider5Command = PlayerPrefsKeyRegistry.GetString("Slider5_Command");
 
-        openCommand = PlayerPrefs.GetString("Open_Command", "OPEN");
-        closeCommand = PlayerPrefs.GetString("Close_Command", "CLOSE");
+        openCommand = PlayerPrefsKeyRegistry.GetString("Open_Command");
+        closeCommand = PlayerPrefsKeyRegistry.GetString("Close_Command");
 
-        saveCommand = PlayerPrefs.GetString("Save_Command", "SAVE");
+        saveCommand = PlayerPrefsKeyRegistry.GetString("Save_Command");
 
-        commandDelimiter = PlayerPrefs.GetString("Command_Delimiter", ":");
-        listDelimiter = PlayerPrefs.GetString("List_Delimiter", ",");
+        commandDelimiter = PlayerPrefsKeyRegistry.GetString("Command_Delimiter");
+        listDelimiter = PlayerPrefsKeyRegistry.GetString("List_Delimiter");
 
         if (commandDelimiter == listDelimiter)
         {
@@ -283,7 +284,7 @@ public class BluetoothCommandConstructor : MonoBehaviour
         lastCommandDelimiterIndex = GetDelimiterIndex(commandDelimiter);
         lastListDelimiterIndex = GetDelimiterIndex(listDelimiter);
 
-        bool toggleState = PlayerPrefs.GetInt("SingleModeToggle", 0) == 1;
+        bool toggleState = PlayerPrefsKeyRegistry.GetInt("SingleModeToggle") == 1;
         if (singleModeToggle != null)
             singleModeToggle.On = toggleState;
     }

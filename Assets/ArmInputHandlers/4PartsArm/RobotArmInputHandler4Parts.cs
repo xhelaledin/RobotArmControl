@@ -111,9 +111,10 @@ public class RobotArmInputHandler4Parts : MonoBehaviour
 
     public void LoadStartRotationsFromPrefs()
     {
-        part1StartRotation = PlayerPrefs.GetFloat("model4startRotationpart1", 0f);
-        part2StartRotation = PlayerPrefs.GetFloat("model4startRotationpart2", 0f);
-        part3StartRotation = PlayerPrefs.GetFloat("model4startRotationpart3", 0f);
+        // USING REGISTRY FOR DEFAULTS
+        part1StartRotation = PlayerPrefsKeyRegistry.GetFloat("model4startRotationpart1");
+        part2StartRotation = PlayerPrefsKeyRegistry.GetFloat("model4startRotationpart2");
+        part3StartRotation = PlayerPrefsKeyRegistry.GetFloat("model4startRotationpart3");
 
         ApplyAllStartRotations();
     }

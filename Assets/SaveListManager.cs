@@ -29,7 +29,8 @@ public class SaveListManager : MonoBehaviour
     private string activeListName;
     private bool activeRunCommand;
 
-    private void Start()
+    // CHANGED: Moved initialization to Awake so data is ready before other scripts access it in Start
+    private void Awake()
     {
         currentModelIndex = PlayerPrefs.GetInt("SelectedModelIndex", 0);
 
@@ -49,7 +50,13 @@ public class SaveListManager : MonoBehaviour
                 }
             });
 
+        // Ensure lists are loaded immediately when object initializes
         LoadLists();
+    }
+
+    private void Start()
+    {
+        // UI Refresh can stay in Start, or run after Awake
         RefreshUI();
     }
 
@@ -76,6 +83,7 @@ public class SaveListManager : MonoBehaviour
             }
         }
 
+        // Ensure keys 0-3 always exist to prevent KeyNotFoundException
         for (int i = 0; i <= 3; i++)
             if (!saveListsGrouped.ContainsKey(i))
                 saveListsGrouped[i] = new();
@@ -99,10 +107,19 @@ public class SaveListManager : MonoBehaviour
 
     public void RefreshUI()
     {
+        // Safety: ensure dictionary is populated if accessed externally before Awake finished (rare but possible)
+        if (saveListsGrouped == null || !saveListsGrouped.ContainsKey(0))
+            LoadLists();
+
         foreach (Transform child in listContent)
             Destroy(child.gameObject);
 
         currentModelIndex = PlayerPrefs.GetInt("SelectedModelIndex", 0);
+
+        // Safety check: ensure current index exists
+        if (!saveListsGrouped.ContainsKey(currentModelIndex))
+            saveListsGrouped[currentModelIndex] = new Dictionary<string, SaveListData>();
+
         var activeLists = saveListsGrouped[currentModelIndex];
 
         if (activeLists.Count == 0)
@@ -179,6 +196,11 @@ public class SaveListManager : MonoBehaviour
     public void CreateList(string listName)
     {
         currentModelIndex = PlayerPrefs.GetInt("SelectedModelIndex", 0);
+        
+        // Safety check
+        if (!saveListsGrouped.ContainsKey(currentModelIndex)) 
+            saveListsGrouped[currentModelIndex] = new Dictionary<string, SaveListData>();
+
         var activeLists = saveListsGrouped[currentModelIndex];
 
         if (!activeLists.ContainsKey(listName))
@@ -196,6 +218,11 @@ public class SaveListManager : MonoBehaviour
     public void AddSaveToList(string saveName, string listName, bool allowDuplicates = false)
     {
         currentModelIndex = PlayerPrefs.GetInt("SelectedModelIndex", 0);
+        
+        // Safety check
+        if (!saveListsGrouped.ContainsKey(currentModelIndex)) 
+            saveListsGrouped[currentModelIndex] = new Dictionary<string, SaveListData>();
+
         var activeLists = saveListsGrouped[currentModelIndex];
 
         if (!activeLists.ContainsKey(listName))
