@@ -1,11 +1,13 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
-using UnityEngine.UI;
+using TMPro;
 using Lean.Gui;
+using UnityEngine.UI;
+using System.Collections.Generic;
+using System.Collections;
+using System.Linq;
+using System;
 
-public class CategorySelectionManager : MonoBehaviour, IHideablePanel
+public class CategorySelectionManager : MonoBehaviour
 {
     [Header("Sprites for Toggle Positions")]
     public Sprite spriteSolo;
@@ -13,11 +15,12 @@ public class CategorySelectionManager : MonoBehaviour, IHideablePanel
     public Sprite spriteMiddle;
     public Sprite spriteLast;
 
-    [Header("Category Icons (4)")]
+    [Header("Category Icons (5)")]
     public Sprite categoryIcon0;
     public Sprite categoryIcon1;
     public Sprite categoryIcon2;
     public Sprite categoryIcon3;
+    public Sprite categoryIcon4; // ✅ New icon for BluetoothLogs
 
     [Header("Prefabs & UI")]
     public GameObject toggleItemPrefab;     // Prefab with CategoryToggleItem attached
@@ -28,13 +31,14 @@ public class CategorySelectionManager : MonoBehaviour, IHideablePanel
     [Header("Reference to Backup Logic")]
     public PlayerPrefsBackup prefsBackup;
 
-    // Hardcoded titles and descriptions in code (must match enum order!)
+    // Titles/descriptions must match PrefCategory enum order
     private readonly string[] categoryTitles = new string[]
     {
         "Command Construct",
         "Encryption",
         "Slider Config",
-        "Visual Config"
+        "Visual Config",
+        "Bluetooth Logs"
     };
 
     private readonly string[] categoryDescriptions = new string[]
@@ -42,7 +46,8 @@ public class CategorySelectionManager : MonoBehaviour, IHideablePanel
         "Command Configurations",
         "Encryption Type and Keys",
         "Slider Configurations",
-        "3d Model Configurations"
+        "3D Model Configurations",
+        "Logs sent/received via Terminal"
     };
 
     [Serializable]
@@ -63,7 +68,14 @@ public class CategorySelectionManager : MonoBehaviour, IHideablePanel
 
     private void Awake()
     {
-        categorySprites = new Sprite[] { categoryIcon0, categoryIcon1, categoryIcon2, categoryIcon3 };
+        categorySprites = new Sprite[]
+        {
+            categoryIcon0,
+            categoryIcon1,
+            categoryIcon2,
+            categoryIcon3,
+            categoryIcon4
+        };
 
         if (selectAllToggle != null)
         {
@@ -81,46 +93,28 @@ public class CategorySelectionManager : MonoBehaviour, IHideablePanel
         }
     }
 
-    private void OnSelectAllOn()
-    {
-        OnSelectAllToggleChanged(true);
-    }
-
-    private void OnSelectAllOff()
-    {
-        OnSelectAllToggleChanged(false);
-    }
+    private void OnSelectAllOn() => OnSelectAllToggleChanged(true);
+    private void OnSelectAllOff() => OnSelectAllToggleChanged(false);
 
     public void RefreshToggleList(List<ItemData> newAvailableItems)
     {
         availableItems.Clear();
         toggleItems.Clear();
 
-        // Sort incoming items by enum order (PrefCategory enum order)
         var orderedItems = newAvailableItems.OrderBy(item => (int)item.prefCategory).ToList();
-
-        // Assign sorted list to availableItems
         availableItems = orderedItems;
 
-        // Clear existing toggles from container
         foreach (Transform child in toggleContainer)
-        {
             Destroy(child.gameObject);
-        }
 
         if (availableItems.Count == 0) return;
 
         int enumCount = Enum.GetValues(typeof(PrefCategory)).Length;
 
-        // Defensive checks
         if (categoryTitles.Length != enumCount)
-        {
             Debug.LogWarning("[CategorySelectionManager] categoryTitles length does not match PrefCategory enum count.");
-        }
         if (categoryDescriptions.Length != enumCount)
-        {
             Debug.LogWarning("[CategorySelectionManager] categoryDescriptions length does not match PrefCategory enum count.");
-        }
 
         for (int i = 0; i < availableItems.Count; i++)
         {
@@ -175,7 +169,6 @@ public class CategorySelectionManager : MonoBehaviour, IHideablePanel
 
         bool allOn = toggleItems.All(t => t.toggle.enabled && t.IsOn());
 
-        // Temporarily remove listeners to avoid recursion
         selectAllToggle.OnOn.RemoveAllListeners();
         selectAllToggle.OnOff.RemoveAllListeners();
 
@@ -204,7 +197,6 @@ public class CategorySelectionManager : MonoBehaviour, IHideablePanel
         ResetAllToggles();
         gameObject.SetActive(true);
 
-        PanelManager.Instance.RegisterPanel(this);
     }
 
     public void ShowRestorePanel(string filePath, List<PrefCategory> availableCategories)
@@ -216,6 +208,7 @@ public class CategorySelectionManager : MonoBehaviour, IHideablePanel
         ResetAllToggles();
         SetAvailableCategories(availableCategories);
         gameObject.SetActive(true);
+        
     }
 
     private void SetAvailableCategories(List<PrefCategory> available)
@@ -243,15 +236,8 @@ public class CategorySelectionManager : MonoBehaviour, IHideablePanel
             selectAllToggle.Set(false);
     }
 
-    public void HidePanel()
-    {
-        gameObject.SetActive(false);
-    }
-
-    public bool IsPanelActive()
-    {
-        return gameObject.activeSelf;
-    }
+    public void HidePanel() => gameObject.SetActive(false);
+    public bool IsPanelActive() => gameObject.activeSelf;
 
     private void OnConfirm()
     {
@@ -266,14 +252,16 @@ public class CategorySelectionManager : MonoBehaviour, IHideablePanel
         if (isRestoreMode)
         {
             prefsBackup.RestorePrefsFromFileWithSelectedCategories(restoreFilePath, selected);
-            HidePanel(); // Hide entire panel on restore confirm
+            HidePanel();
         }
         else
         {
             prefsBackup.SavePrefsWithSelectedCategories(selected);
-            // Only hide backupPanel, not entire backupRestorePanel
             if (prefsBackup != null && prefsBackup.backupPanel != null)
                 prefsBackup.backupPanel.SetActive(false);
+            
+            // We also hide this selection panel
+            HidePanel();
         }
     }
 }

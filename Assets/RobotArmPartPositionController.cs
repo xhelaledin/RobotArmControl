@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using Lean.Gui;
 
-public class RobotArmPartPositionController : MonoBehaviour, IHideablePanel
+public class RobotArmPartPositionController : MonoBehaviour
 {
     [Header("Input Handlers")]
     public RobotArmInputHandler4Parts robotArmInputHandler4Parts;
@@ -38,6 +38,8 @@ public class RobotArmPartPositionController : MonoBehaviour, IHideablePanel
     private enum Mode { Min, Start, Max }
     private Mode currentMode = Mode.Min;
 
+    private bool isProgrammatic; // prevents feedback loops
+
     private void Awake()
     {
         sliders = new[] { slider1, slider2, slider3, slider4, slider5 };
@@ -49,25 +51,75 @@ public class RobotArmPartPositionController : MonoBehaviour, IHideablePanel
         for (int i = 0; i < sliders.Length; i++)
         {
             int idx = i;
-            sliders[i].onValueChanged.AddListener(v => OnSliderChanged(idx, v));
-            toggles[i].onValueChanged.AddListener(b => OnToggleChanged(idx, b));
+            if (sliders[i] != null)
+                sliders[i].onValueChanged.AddListener(v => OnSliderChanged(idx, v));
+            if (toggles[i] != null)
+                toggles[i].onValueChanged.AddListener(b => OnToggleChanged(idx, b));
         }
 
-        // Global mode toggles
-        minToggle.TurnOffSiblings = false;
-        startToggle.TurnOffSiblings = false;
-        maxToggle.TurnOffSiblings = false;
+        // --- Global mode radio toggles ---
+        if (minToggle != null) SetupModeRadio(minToggle, Mode.Min);
+        if (startToggle != null) SetupModeRadio(startToggle, Mode.Start);
+        if (maxToggle != null) SetupModeRadio(maxToggle, Mode.Max);
 
-        minToggle.OnOn.AddListener(() => SetMode(Mode.Min));
-        startToggle.OnOn.AddListener(() => SetMode(Mode.Start));
-        maxToggle.OnOn.AddListener(() => SetMode(Mode.Max));
-
-        SetMode(Mode.Min, playTransitions: false);
-        startToggle.On = true;
+        // Default to Start mode
+        SelectMode(Mode.Start, playTransitions: false);
 
         RefreshModelSettings();
         LoadPreferences();
     }
+
+    private void SetupModeRadio(LeanToggle toggle, Mode mode)
+    {
+        toggle.TurnOffSiblings = false;
+
+        // When turned ON → activate mode
+        toggle.OnOn.AddListener(() => SelectMode(mode));
+
+        // When turned OFF → if this was the active mode and it wasn’t code-driven, snap back ON
+        toggle.OnOff.AddListener(() =>
+        {
+            if (!isProgrammatic && currentMode == mode)
+            {
+                toggle.On = true;
+            }
+        });
+    }
+
+    private void SelectMode(Mode mode, bool playTransitions = true)
+    {
+        if (currentMode == mode && playTransitions)
+            return;
+
+        currentMode = mode;
+        var activeToggle = GetToggle(mode);
+        if (activeToggle == null) return;
+
+        // Turn ON the selected toggle
+        if (playTransitions)
+            activeToggle.TurnOn();
+        else
+            activeToggle.On = true;
+
+        // Turn OFF the others
+        isProgrammatic = true;
+        foreach (var other in new[] { minToggle, startToggle, maxToggle })
+        {
+            if (other != null && other != activeToggle)
+                other.TurnOff();
+        }
+        isProgrammatic = false;
+
+        ApplyAllPartsWithMode();
+    }
+
+    private LeanToggle GetToggle(Mode mode) => mode switch
+    {
+        Mode.Min => minToggle,
+        Mode.Start => startToggle,
+        Mode.Max => maxToggle,
+        _ => startToggle
+    };
 
     public void ShowPanel()
     {
@@ -78,9 +130,16 @@ public class RobotArmPartPositionController : MonoBehaviour, IHideablePanel
 
         sliderTextUpdater.LoadStartValuesFromPrefs();
         sliderTextUpdater.UpdateStartCurrentValueText(selectedModelIndex);
-        PanelManager.Instance.RegisterPanel(this);
+        
+        PanelManager.Instance.PushPanel(
+            key: visualPanel,
+            hide: HidePanel,      // Pass the existing HidePanel method
+            isActive: IsPanelActive  // Pass the existing IsPanelActive method
+        );
+
     }
 
+    // This method is now called by PanelManager's 'hide' delegate
     public void HidePanel()
     {
         visualPanel.SetActive(false);
@@ -88,6 +147,7 @@ public class RobotArmPartPositionController : MonoBehaviour, IHideablePanel
         robotArmSelection.MoveModelByStartValues();
     }
 
+    // This method is now called by PanelManager's 'isActive' delegate
     public bool IsPanelActive() => visualPanel.activeSelf;
 
     private void RefreshModelSettings()
@@ -102,8 +162,8 @@ public class RobotArmPartPositionController : MonoBehaviour, IHideablePanel
         for (int i = 0; i < sliders.Length; i++)
         {
             bool isActive = i < activeParts;
-            sliders[i].gameObject.SetActive(isActive);
-            toggles[i].gameObject.SetActive(isActive);
+            if (sliders[i] != null) sliders[i].gameObject.SetActive(isActive);
+            if (toggles[i] != null) toggles[i].gameObject.SetActive(isActive);
         }
     }
 
@@ -119,8 +179,8 @@ public class RobotArmPartPositionController : MonoBehaviour, IHideablePanel
             float sliderOffset = PlayerPrefs.GetFloat(offsetKey, 0f); // slider offset from PlayerPrefs
             bool direction = PlayerPrefs.GetInt(dirKey, 0) == 1;
 
-            sliders[i].SetValueWithoutNotify(sliderOffset); // initialize slider
-            toggles[i].SetIsOnWithoutNotify(direction);
+            if (sliders[i] != null) sliders[i].SetValueWithoutNotify(sliderOffset); // initialize slider
+            if (toggles[i] != null) toggles[i].SetIsOnWithoutNotify(direction);
 
             tempRotations[i] = sliderOffset;
             tempDirections[i] = direction;
@@ -142,20 +202,6 @@ public class RobotArmPartPositionController : MonoBehaviour, IHideablePanel
         tempDirections[index] = isOn;
         SetInputHandlerDirection(index, isOn);
         ApplyRotation(index, sliders[index].value, 1);
-    }
-
-    private void SetMode(Mode mode, bool playTransitions = true)
-    {
-        currentMode = mode;
-
-        if (playTransitions)
-        {
-            if (mode == Mode.Min) { startToggle.TurnOff(); maxToggle.TurnOff(); }
-            if (mode == Mode.Start) { minToggle.TurnOff(); maxToggle.TurnOff(); }
-            if (mode == Mode.Max) { minToggle.TurnOff(); startToggle.TurnOff(); }
-        }
-
-        ApplyAllPartsWithMode();
     }
 
     private void ApplyAllPartsWithMode()
@@ -185,12 +231,14 @@ public class RobotArmPartPositionController : MonoBehaviour, IHideablePanel
         {
             case 0:
                 var h4 = robotArmInputHandler4Parts;
+                if (h4 == null) break;
                 if (index == 0) h4.setPart1RotationVisual(finalRotation, outlineIndex);
                 if (index == 1) h4.setPart2RotationVisual(finalRotation, outlineIndex);
                 if (index == 2) h4.setPart3RotationVisual(finalRotation, outlineIndex);
                 break;
             case 1:
                 var h5 = robotArmInputHandler5Parts;
+                if (h5 == null) break;
                 if (index == 0) h5.setPart1RotationVisual(finalRotation, outlineIndex);
                 if (index == 1) h5.setPart2RotationVisual(finalRotation, outlineIndex);
                 if (index == 2) h5.setPart3RotationVisual(finalRotation, outlineIndex);
@@ -198,6 +246,7 @@ public class RobotArmPartPositionController : MonoBehaviour, IHideablePanel
                 break;
             case 2:
                 var h5b = robotArmInputHandler5BParts;
+                if (h5b == null) break;
                 if (index == 0) h5b.setPart1RotationVisual(finalRotation, outlineIndex);
                 if (index == 1) h5b.setPart2RotationVisual(finalRotation, outlineIndex);
                 if (index == 2) h5b.setPart3RotationVisual(finalRotation, outlineIndex);
@@ -205,6 +254,7 @@ public class RobotArmPartPositionController : MonoBehaviour, IHideablePanel
                 break;
             case 3:
                 var h6 = robotArmInputHandler6Parts;
+                if (h6 == null) break;
                 if (index == 0) h6.setPart1RotationVisual(finalRotation, outlineIndex);
                 if (index == 1) h6.setPart2RotationVisual(finalRotation, outlineIndex);
                 if (index == 2) h6.setPart3RotationVisual(finalRotation, outlineIndex);
@@ -218,10 +268,10 @@ public class RobotArmPartPositionController : MonoBehaviour, IHideablePanel
     {
         switch (selectedModelIndex)
         {
-            case 0: robotArmInputHandler4Parts.SetDirection(partIndex, isPositive); break;
-            case 1: robotArmInputHandler5Parts.SetDirection(partIndex, isPositive); break;
-            case 2: robotArmInputHandler5BParts.SetDirection(partIndex, isPositive); break;
-            case 3: robotArmInputHandler6Parts.SetDirection(partIndex, isPositive); break;
+            case 0: robotArmInputHandler4Parts?.SetDirection(partIndex, isPositive); break;
+            case 1: robotArmInputHandler5Parts?.SetDirection(partIndex, isPositive); break;
+            case 2: robotArmInputHandler5BParts?.SetDirection(partIndex, isPositive); break;
+            case 3: robotArmInputHandler6Parts?.SetDirection(partIndex, isPositive); break;
         }
     }
 
@@ -242,12 +292,12 @@ public class RobotArmPartPositionController : MonoBehaviour, IHideablePanel
         modelSelectorRadio.ShowSettingsPanel();
         robotArmSelection.MoveModelAfterStartPosEdit();
 
-        robotArmInputHandler4Parts.LoadStartRotationsFromPrefs();
-        robotArmInputHandler5Parts.LoadStartRotationsFromPrefs();
-        robotArmInputHandler5BParts.LoadStartRotationsFromPrefs();
-        robotArmInputHandler6Parts.LoadStartRotationsFromPrefs();
+        robotArmInputHandler4Parts?.LoadStartRotationsFromPrefs();
+        robotArmInputHandler5Parts?.LoadStartRotationsFromPrefs();
+        robotArmInputHandler5BParts?.LoadStartRotationsFromPrefs();
+        robotArmInputHandler6Parts?.LoadStartRotationsFromPrefs();
 
-        sliderTextUpdater.ApplyPrefsToSlider(selectedModelIndex);
+        sliderTextUpdater?.ApplyPrefsToSlider(selectedModelIndex);
     }
 
     private string GetModelName(int idx) => idx switch

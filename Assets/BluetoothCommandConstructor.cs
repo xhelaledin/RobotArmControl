@@ -5,7 +5,7 @@ using UnityEngine.UI;
 using System.Collections.Generic;
 using System.Collections;
 
-public class BluetoothCommandConstructor : MonoBehaviour, IHideablePanel
+public class BluetoothCommandConstructor : MonoBehaviour
 {
     [Header("UI Panels")]
     public GameObject commandConstructPanel;
@@ -65,9 +65,6 @@ public class BluetoothCommandConstructor : MonoBehaviour, IHideablePanel
     [Header("Debug")]
     public bool debugLogs = false;
 
-    private Vector3 commandPanelOriginalPos;
-    private Vector2 contentOriginalAnchoredPos;
-    private Coroutine keyboardCoroutine;
 
     private readonly List<string> delimiterOptions = new List<string> { ":", ",", "-", "_", ".", ";", "+", "=", "~" };
 
@@ -84,12 +81,6 @@ public class BluetoothCommandConstructor : MonoBehaviour, IHideablePanel
 
     private void Awake()
     {
-        // store original UI pos
-        commandPanelOriginalPos = commandPanelRect != null ? commandPanelRect.localPosition : Vector3.zero;
-
-        if (scrollRect != null && scrollRect.content != null)
-            contentOriginalAnchoredPos = scrollRect.content.anchoredPosition;
-
         LoadCommandsFromPrefs();
         SyncDropdowns();
 
@@ -119,6 +110,7 @@ public class BluetoothCommandConstructor : MonoBehaviour, IHideablePanel
         SyncInputsToDisplay();
         UpdateAllDisplayTexts();
     }
+
 
     private void SetupInputField(TMP_InputField inputField, TMP_Text displayText, System.Action<string> onUpdateCommand, string defaultValue)
     {
@@ -160,18 +152,6 @@ public class BluetoothCommandConstructor : MonoBehaviour, IHideablePanel
             }
 
             SaveCommandsToPrefs();
-        });
-
-        // Keyboard handling
-        inputField.onSelect.AddListener(_ =>
-        {
-            if (keyboardCoroutine != null) StopCoroutine(keyboardCoroutine);
-            keyboardCoroutine = StartCoroutine(WaitAndAdjustForKeyboard(inputField));
-        });
-
-        inputField.onDeselect.AddListener(_ =>
-        {
-            ResetUIPosition();
         });
     }
 
@@ -280,19 +260,20 @@ public class BluetoothCommandConstructor : MonoBehaviour, IHideablePanel
 
     private void LoadCommandsFromPrefs()
     {
-        slider1Command = PlayerPrefs.GetString("Slider1_Command", "S1");
-        slider2Command = PlayerPrefs.GetString("Slider2_Command", "S2");
-        slider3Command = PlayerPrefs.GetString("Slider3_Command", "S3");
-        slider4Command = PlayerPrefs.GetString("Slider4_Command", "S4");
-        slider5Command = PlayerPrefs.GetString("Slider5_Command", "S5");
+        // USING REGISTRY FOR DEFAULTS
+        slider1Command = PlayerPrefsKeyRegistry.GetString("Slider1_Command");
+        slider2Command = PlayerPrefsKeyRegistry.GetString("Slider2_Command");
+        slider3Command = PlayerPrefsKeyRegistry.GetString("Slider3_Command");
+        slider4Command = PlayerPrefsKeyRegistry.GetString("Slider4_Command");
+        slider5Command = PlayerPrefsKeyRegistry.GetString("Slider5_Command");
 
-        openCommand = PlayerPrefs.GetString("Open_Command", "OPEN");
-        closeCommand = PlayerPrefs.GetString("Close_Command", "CLOSE");
+        openCommand = PlayerPrefsKeyRegistry.GetString("Open_Command");
+        closeCommand = PlayerPrefsKeyRegistry.GetString("Close_Command");
 
-        saveCommand = PlayerPrefs.GetString("Save_Command", "SAVE");
+        saveCommand = PlayerPrefsKeyRegistry.GetString("Save_Command");
 
-        commandDelimiter = PlayerPrefs.GetString("Command_Delimiter", ":");
-        listDelimiter = PlayerPrefs.GetString("List_Delimiter", ",");
+        commandDelimiter = PlayerPrefsKeyRegistry.GetString("Command_Delimiter");
+        listDelimiter = PlayerPrefsKeyRegistry.GetString("List_Delimiter");
 
         if (commandDelimiter == listDelimiter)
         {
@@ -303,7 +284,7 @@ public class BluetoothCommandConstructor : MonoBehaviour, IHideablePanel
         lastCommandDelimiterIndex = GetDelimiterIndex(commandDelimiter);
         lastListDelimiterIndex = GetDelimiterIndex(listDelimiter);
 
-        bool toggleState = PlayerPrefs.GetInt("SingleModeToggle", 0) == 1;
+        bool toggleState = PlayerPrefsKeyRegistry.GetInt("SingleModeToggle") == 1;
         if (singleModeToggle != null)
             singleModeToggle.On = toggleState;
     }
@@ -446,321 +427,25 @@ public class BluetoothCommandConstructor : MonoBehaviour, IHideablePanel
         if (saveCommandDisplayText != null)
             saveCommandDisplayText.text = saveCommand + commandDelimiter + BuildSaveExample();
 
-        PanelManager.Instance.RegisterPanel(this);
+        PanelManager.Instance.PushPanel(
+            key: commandConstructPanel,
+            hide: HidePanel,
+            isActive: IsPanelActive
+        );
+        
+
     }
 
-
-    public void HidePanel() => commandConstructPanel.SetActive(false);
-
-    // ------------------------------
-    // Keyboard / Scroll handling
-    // ------------------------------
-
-    // Coroutine started when an input is selected. Runs while any input stays focused.
-    private IEnumerator WaitAndAdjustForKeyboard(TMP_InputField focusedInput)
+    // This method is now called by PanelManager's 'hide' delegate
+    public void HidePanel()
     {
-        // let layout settle
-        Canvas.ForceUpdateCanvases();
-        yield return new WaitForEndOfFrame();
-
-        // store original content anchored pos (so we can restore)
-        if (scrollRect != null && scrollRect.content != null)
-            contentOriginalAnchoredPos = scrollRect.content.anchoredPosition;
-
-        // Loop while any input is focused
-        while (IsAnyInputFocused())
-        {
-            // find the current focused input (could have changed)
-            TMP_InputField current = GetFocusedInputField();
-
-            if (current == null)
-            {
-                yield return null;
-                continue;
-            }
-
-            // Find the container which is a direct child of content (the "entry")
-            RectTransform entry = FindEntryContainerForInput(current);
-            if (entry == null)
-            {
-                // fallback - try parent
-                if (current.transform.parent is RectTransform rt) entry = rt;
-            }
-
-            // get keyboard rect in screen coords
-            Rect kb = GetKeyboardScreenRect();
-
-            if (kb.height > 0f)
-            {
-                float keyboardTopY = kb.y + kb.height; // screen coords (bottom-left origin)
-
-                // Wait for one frame to ensure the UI layouts are updated before measuring
-                Canvas.ForceUpdateCanvases();
-                yield return new WaitForEndOfFrame();
-
-                // do the precise scroll
-                ScrollToContainerWithKeyboard(entry, keyboardTopY, 8f); // margin = 8 px
-            }
-            else
-            {
-                // Keyboard not visible yet - ensure container is generally visible (soft fallback)
-                Canvas.ForceUpdateCanvases();
-                yield return new WaitForEndOfFrame();
-                ScrollToContainerSimple(entry, 0.18f);
-            }
-
-            yield return null;
-        }
-
-        // restore original anchored pos when keyboard hides / input loses focus
-        if (scrollRect != null && scrollRect.content != null)
-            scrollRect.content.anchoredPosition = contentOriginalAnchoredPos;
-
-        keyboardCoroutine = null;
+        commandConstructPanel.SetActive(false);
     }
 
+    // This method is now called by PanelManager's 'isActive' delegate
     public bool IsPanelActive()
     {
+        if (commandConstructPanel == null) return false;
         return commandConstructPanel.activeSelf;
-    }
-
-    // Find the nearest child RectTransform of scrollRect.content that contains the input.
-    private RectTransform FindEntryContainerForInput(TMP_InputField input)
-    {
-        if (input == null || scrollRect == null || scrollRect.content == null) return null;
-
-        RectTransform t = input.transform as RectTransform;
-
-        // Walk up until we find a direct child of scrollRect.content (common structure)
-        while (t != null && t != scrollRect.content)
-        {
-            if (t.parent == scrollRect.content)
-                return t;
-            t = t.parent as RectTransform;
-        }
-
-        // Fallback: if nothing found, check if the original transform is under content in any depth.
-        // If so, return the top-most child of content that is ancestor of input.
-        if (input.transform.IsChildOf(scrollRect.content))
-        {
-            // iterate content children
-            for (int i = 0; i < scrollRect.content.childCount; i++)
-            {
-                RectTransform child = scrollRect.content.GetChild(i) as RectTransform;
-                if (child != null && input.transform.IsChildOf(child))
-                    return child;
-            }
-        }
-
-        return null;
-    }
-
-    // Attempts to obtain the keyboard visible rect in screen coordinates (bottom-left origin).
-    // Uses TouchScreenKeyboard.area when available; falls back to Android JNI method.
-    private Rect GetKeyboardScreenRect()
-    {
-        // Try TouchScreenKeyboard if available & has area
-        try
-        {
-            if (TouchScreenKeyboard.visible)
-            {
-                Rect area = TouchScreenKeyboard.area;
-                if (area.height > 0f)
-                {
-                    if (debugLogs) Debug.Log("[KB] TouchScreenKeyboard.area: " + area);
-                    return area;
-                }
-            }
-        }
-        catch { /* ignore */ }
-
-#if UNITY_ANDROID && !UNITY_EDITOR
-        // Android JNI fallback - compute visible display frame and deduce keyboard height
-        try
-        {
-            using (AndroidJavaClass unityPlayer = new AndroidJavaClass("com.unity3d.player.UnityPlayer"))
-            using (AndroidJavaObject activity = unityPlayer.GetStatic<AndroidJavaObject>("currentActivity"))
-            using (AndroidJavaObject window = activity.Call<AndroidJavaObject>("getWindow"))
-            using (AndroidJavaObject decorView = window.Call<AndroidJavaObject>("getDecorView"))
-            {
-                AndroidJavaObject rect = new AndroidJavaObject("android.graphics.Rect");
-                decorView.Call("getWindowVisibleDisplayFrame", rect);
-
-                int visibleTop = rect.Call<int>("top"); // top pixel (y from top)
-                int visibleBottom = rect.Call<int>("bottom"); // bottom pixel from top
-                // Android window coords origin at top-left; Unity screens at bottom-left.
-                int visibleHeight = visibleBottom - visibleTop;
-                int totalHeight = Screen.height;
-                int keyboardHeight = totalHeight - visibleHeight;
-
-                if (keyboardHeight > totalHeight * 0.12f)
-                {
-                    // set keyboard rect bottom at screen bottom (y=0), height = keyboardHeight
-                    Rect kb = new Rect(0, 0, Screen.width, keyboardHeight);
-                    if (debugLogs) Debug.Log($"[KB] JNI visibleHeight={visibleHeight} total={totalHeight} kbH={keyboardHeight}");
-                    return kb;
-                }
-            }
-        }
-        catch (System.Exception ex)
-        {
-            if (debugLogs) Debug.LogWarning("[KB] JNI fail: " + ex.Message);
-        }
-#endif
-
-        // not visible / unknown
-        return new Rect(0, 0, 0, 0);
-    }
-
-    // Scroll so entry bottom is just above keyboardTopScreenY (in screen pixels). marginPixels is extra space above keyboard.
-    private void ScrollToContainerWithKeyboard(RectTransform entry, float keyboardTopScreenY, float marginPixels)
-    {
-        if (scrollRect == null || scrollRect.content == null || scrollRect.viewport == null || entry == null) return;
-
-        // Determine camera to use when converting screen <-> local
-        Canvas viewportCanvas = scrollRect.viewport.GetComponentInParent<Canvas>();
-        Camera camForConversion = null;
-        if (viewportCanvas != null)
-        {
-            camForConversion = (viewportCanvas.renderMode == RenderMode.ScreenSpaceOverlay) ? null : viewportCanvas.worldCamera;
-        }
-        else
-        {
-            camForConversion = (worldCanvas != null && worldCanvas.renderMode != RenderMode.ScreenSpaceOverlay) ? worldCanvas.worldCamera : null;
-        }
-
-        // Get world bottom corner of entry
-        Vector3[] corners = new Vector3[4];
-        entry.GetWorldCorners(corners);
-        Vector3 bottomWorld = corners[0]; // bottom-left
-        Vector2 bottomScreen = RectTransformUtility.WorldToScreenPoint(camForConversion, bottomWorld);
-
-        // keyboard top screen point (we'll keep X the same as bottomScreen.x)
-        Vector2 kbTopScreen = new Vector2(bottomScreen.x, keyboardTopScreenY);
-
-        // Convert both to viewport local coordinates (same coordinate space)
-        Vector2 bottomLocal, kbTopWithMarginLocal;
-
-        bool okBottom = RectTransformUtility.ScreenPointToLocalPointInRectangle(scrollRect.viewport, bottomScreen, camForConversion, out bottomLocal);
-        bool okKb = RectTransformUtility.ScreenPointToLocalPointInRectangle(scrollRect.viewport, new Vector2(kbTopScreen.x, kbTopScreen.y + marginPixels), camForConversion, out kbTopWithMarginLocal);
-
-        if (!okBottom || !okKb)
-        {
-            if (debugLogs) Debug.Log("[Scroll] ScreenToLocal failed");
-            return;
-        }
-
-        // If bottomLocal.y already above the target, nothing to do
-        float targetLocalY = kbTopWithMarginLocal.y; // where bottom should be
-        if (bottomLocal.y >= targetLocalY)
-        {
-            if (debugLogs) Debug.Log($"[Scroll] already above target: bottomLocal.y={bottomLocal.y} target={targetLocalY}");
-            return;
-        }
-
-        // How much to move content in local units
-        float deltaLocal = targetLocalY - bottomLocal.y; // positive means we need to move content up
-
-        // Compute new anchoredPosition
-        RectTransform content = scrollRect.content;
-        RectTransform viewport = scrollRect.viewport;
-
-        // content.anchoredPosition.y corresponds to the vertical offset: we will add deltaLocal
-        float contentHeight = content.rect.height;
-        float viewportHeight = viewport.rect.height;
-
-        // clamp range: anchoredPosition.y should be within [0, maxScroll]
-        float maxScroll = Mathf.Max(0f, contentHeight - viewportHeight);
-
-        // Current anchored y
-        float curY = content.anchoredPosition.y;
-
-        float newY = curY + deltaLocal;
-
-        // clamp
-        newY = Mathf.Clamp(newY, 0f, maxScroll);
-
-        // Smooth the movement a bit - immediate set gives best UX for keyboard but we can Lerp small if desired
-        content.anchoredPosition = new Vector2(content.anchoredPosition.x, newY);
-
-        if (debugLogs) Debug.Log($"[Scroll] moved content by {deltaLocal} -> newY={newY} (curY={curY})");
-    }
-
-    // Gentle fallback: position container bottom near bottomRatio (0..1) of viewport (e.g. 0.18 => ~18% above bottom)
-    private void ScrollToContainerSimple(RectTransform entry, float bottomRatio)
-    {
-        if (scrollRect == null || scrollRect.content == null || scrollRect.viewport == null || entry == null) return;
-
-        Canvas viewportCanvas = scrollRect.viewport.GetComponentInParent<Canvas>();
-        Camera camForConversion = null;
-        if (viewportCanvas != null)
-        {
-            camForConversion = (viewportCanvas.renderMode == RenderMode.ScreenSpaceOverlay) ? null : viewportCanvas.worldCamera;
-        }
-        else
-        {
-            camForConversion = (worldCanvas != null && worldCanvas.renderMode != RenderMode.ScreenSpaceOverlay) ? worldCanvas.worldCamera : null;
-        }
-
-        Vector3[] corners = new Vector3[4];
-        entry.GetWorldCorners(corners);
-        Vector2 bottomScreen = RectTransformUtility.WorldToScreenPoint(camForConversion, corners[0]);
-
-        Vector2 bottomLocal;
-        if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(scrollRect.viewport, bottomScreen, camForConversion, out bottomLocal)) return;
-
-        float viewportHeight = scrollRect.viewport.rect.height;
-        float desiredLocalY = -viewportHeight * 0.5f + viewportHeight * bottomRatio; // viewport local origin is center
-
-        float delta = desiredLocalY - bottomLocal.y;
-
-        RectTransform content = scrollRect.content;
-        float contentHeight = content.rect.height;
-        float maxScroll = Mathf.Max(0f, contentHeight - viewportHeight);
-
-        float newY = Mathf.Clamp(content.anchoredPosition.y + delta, 0f, maxScroll);
-        content.anchoredPosition = new Vector2(content.anchoredPosition.x, newY);
-
-        if (debugLogs) Debug.Log($"[SimpleScroll] delta={delta}, newY={newY}");
-    }
-
-    private TMP_InputField GetFocusedInputField()
-    {
-        if (slider1CommandInputField != null && slider1CommandInputField.isFocused) return slider1CommandInputField;
-        if (slider2CommandInputField != null && slider2CommandInputField.isFocused) return slider2CommandInputField;
-        if (slider3CommandInputField != null && slider3CommandInputField.isFocused) return slider3CommandInputField;
-        if (slider4CommandInputField != null && slider4CommandInputField.isFocused) return slider4CommandInputField;
-        if (slider5CommandInputField != null && slider5CommandInputField.isFocused) return slider5CommandInputField;
-        if (openCommandInputField != null && openCommandInputField.isFocused) return openCommandInputField;
-        if (closeCommandInputField != null && closeCommandInputField.isFocused) return closeCommandInputField;
-        if (saveCommandInputField != null && saveCommandInputField.isFocused) return saveCommandInputField;
-        return null;
-    }
-
-    private bool IsAnyInputFocused()
-    {
-        return (slider1CommandInputField != null && slider1CommandInputField.isFocused)
-            || (slider2CommandInputField != null && slider2CommandInputField.isFocused)
-            || (slider3CommandInputField != null && slider3CommandInputField.isFocused)
-            || (slider4CommandInputField != null && slider4CommandInputField.isFocused)
-            || (slider5CommandInputField != null && slider5CommandInputField.isFocused)
-            || (openCommandInputField != null && openCommandInputField.isFocused)
-            || (closeCommandInputField != null && closeCommandInputField.isFocused)
-            || (saveCommandInputField != null && saveCommandInputField.isFocused);
-    }
-
-    private void ResetUIPosition()
-    {
-        if (keyboardCoroutine != null)
-        {
-            StopCoroutine(keyboardCoroutine);
-            keyboardCoroutine = null;
-        }
-
-        if (commandPanelRect != null)
-            commandPanelRect.localPosition = commandPanelOriginalPos;
-
-        if (scrollRect != null && scrollRect.content != null)
-            scrollRect.content.anchoredPosition = contentOriginalAnchoredPos;
     }
 }

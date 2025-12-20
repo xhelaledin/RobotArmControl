@@ -1,0 +1,187 @@
+#include <Servo.h>
+#include <DES.h>
+
+Servo s1;
+Servo s2;
+Servo s3;
+Servo s4;
+Servo s5;
+Servo s6;
+
+#define pinServo1 3
+#define pinServo2 4
+#define pinServo3 5
+#define pinServo4 6
+#define pinServo5 7
+#define pinServo6 8
+
+DES des;
+// Key for decryption, this should be same as on the app
+byte key[8] = { '1', '2', '3', '4', '5', '6', '7', '8' };
+
+void setup() {
+  s1.attach(pinServo1);
+  s2.attach(pinServo2);
+  s3.attach(pinServo3);
+  s4.attach(pinServo4);
+  s5.attach(pinServo5);
+  s6.attach(pinServo6);
+
+  Serial.begin(9600);
+}
+
+void loop() {
+  processSerialCommand();
+  delay(5);
+}
+
+void processSerialCommand() {
+  while (Serial.available() > 0) {
+    String input = Serial.readStringUntil('\n');
+    input.trim();
+    
+    String decryptedMessage = decryptHexString(input);
+
+    Serial.println("Received: " + input);
+    Serial.println("  Decrypted message: " + decryptedMessage);
+    
+    input = decryptedMessage;
+    input.trim();
+    
+    String leftSide = splitStringLR(input,0);
+    String rightSide = splitStringLR(input,1);
+      
+    if(leftSide.equals("S1")){
+      int angle = rightSide.toInt();
+      s1.write(angle);
+    }
+    else if(leftSide.equals("S2")){
+      int angle = rightSide.toInt();
+      s2.write(angle);
+    }
+    else if(leftSide.equals("S3")){
+      int angle = rightSide.toInt();
+      s3.write(angle);
+    }
+    else if(leftSide.equals("S4")){
+      int angle = rightSide.toInt();
+      s4.write(angle);
+    }
+    else if(leftSide.equals("S5")){
+      int angle = rightSide.toInt();
+      s5.write(angle);
+    }
+    else if(leftSide.equals("OPEN")){   
+    int angle = rightSide.toInt();
+    s6.write(angle);
+    }
+    else if(leftSide.equals("CLOSE")){
+      int angle = rightSide.toInt();
+      s6.write(angle);
+    }
+    // you can merge the open and close to a single command, you can use this and remove the OPEN and CLOSE one
+    // else if(leftSide.equals("BUTTON")){   
+    //   int angle = rightSide.toInt();
+    //   s6.write(angle);
+    // }
+    else if(leftSide.equals("SAVE")){
+      moveServosBySave(rightSide);
+    }
+  }
+}
+
+void moveServosBySave(String input){
+  int angle1 = splitRightSide(input,0).toInt();
+  s1.write(angle1);
+  delay(500);
+
+  int angle2 = splitRightSide(input,1).toInt();
+  s2.write(angle2);
+  delay(500);
+
+  int angle3 = splitRightSide(input,2).toInt();
+  s3.write(angle3);
+  delay(500);
+
+  int angle4 = splitRightSide(input,3).toInt();
+  s4.write(angle4);
+  delay(500);
+
+  int angle5 = splitRightSide(input,4).toInt();
+  s5.write(angle5);
+  delay(500);
+
+  int angle6 = splitRightSide(input,5).toInt();
+  s6.write(angle6);
+}
+
+String splitStringLR(String input, int index) {
+  char delimiter = ':';  // This should be the same with the app one
+  if (!input.contains(":")) return "";
+  
+  int start = 0, end = 0, count = 0;
+  
+  while (count <= index) {
+    end = input.indexOf(delimiter, start);
+    if (end == -1) end = input.length();
+    
+    if (count == index) {
+      return input.substring(start, end); 
+    }
+    
+    start = end + 1;
+    count++;
+  }
+  
+  return "";
+}
+
+String splitRightSide(String input, int index){
+  char delimiter = ',';  // This should be the same with the app one on the save config
+  if (!input.contains(",")) return "";
+
+  int start = 0, end = 0, count = 0;
+  
+  while (count <= index) {
+    end = input.indexOf(delimiter, start);
+    if (end == -1) end = input.length();   
+    
+    if (count == index) {
+      return input.substring(start, end);  
+    }
+    
+    start = end + 1;
+    count++;
+  }
+  
+  return "";  
+}
+
+String decryptHexString(String encHex) {
+  int len = encHex.length() / 2;
+  if (len % 8 != 0) {
+    return "Invalid block size!";
+  }
+
+  byte cipher[len];
+  for (int i = 0; i < len; i++) {
+    String byteStr = encHex.substring(i * 2, i * 2 + 2);
+    cipher[i] = strtoul(byteStr.c_str(), nullptr, 16);
+  }
+
+  byte decrypted[len];
+  for (int i = 0; i < len; i += 8) {
+    des.decrypt(decrypted + i, cipher + i, key);
+  }
+
+  int pad = decrypted[len - 1];
+  if (pad <= 0 || pad > 8) pad = 0;
+  int realLen = len - pad;
+
+  String result = "";
+  for (int i = 0; i < realLen; i++) {
+    result += (char)decrypted[i];
+  }
+
+  return result;
+}

@@ -6,15 +6,18 @@ using TMPro;
 
 public class ListManager : MonoBehaviour
 {
+    [Header("Save Items")]
     public GameObject saveItemPrefab;
-    public GameObject noSavesPrefab;   // 👈 Prefab to show when list is empty
+    public GameObject noSavesPrefab;
     public Transform content;
 
+    [Header("Robot Arm Handlers")]
     public RobotArmInputHandler4Parts armInputHandler4Parts;
     public RobotArmInputHandler5Parts armInputHandler5Parts;
     public RobotArmInputHandler5BParts armInputHandler5BParts;
     public RobotArmInputHandler6Parts armInputHandler6Parts;
 
+    [Header("Bluetooth")]
     public BluetoothCommandConstructor bluetoothCommandConstructor;
 
     [Header("Button Sprites")]
@@ -23,14 +26,15 @@ public class ListManager : MonoBehaviour
     public Sprite viewNormalSprite;
     public Sprite viewSelectedSprite;
 
-    private int selectedModelIndex;
+    [Header("Add to List Panel")]
+    public AddToListPanelManager addToListPanelManager; // Assign in inspector
 
-    // Track global selection across all save items
+    private int selectedModelIndex;
     private SaveItemManager currentlySelectedItem = null;
     private Button currentlySelectedButton = null;
     private string currentlySelectedType = "";
 
-    private GameObject noSavesInstance = null; // 👈 Track spawned "no saves" object
+    private GameObject noSavesInstance = null;
 
     void Start()
     {
@@ -42,7 +46,6 @@ public class ListManager : MonoBehaviour
     {
         selectedModelIndex = PlayerPrefs.GetInt("SelectedModelIndex", 0);
 
-        // Destroy everything except the "no saves" instance
         foreach (Transform child in content)
         {
             if (noSavesInstance == null || child.gameObject != noSavesInstance)
@@ -53,7 +56,6 @@ public class ListManager : MonoBehaviour
 
         if (saves.Count == 0)
         {
-            // Show "no saves" prefab
             if (noSavesPrefab != null && noSavesInstance == null)
             {
                 noSavesInstance = Instantiate(noSavesPrefab, content);
@@ -61,7 +63,6 @@ public class ListManager : MonoBehaviour
         }
         else
         {
-            // Hide/remove "no saves" prefab if exists
             if (noSavesInstance != null)
             {
                 Destroy(noSavesInstance);
@@ -74,7 +75,6 @@ public class ListManager : MonoBehaviour
             }
         }
 
-        // Reset selection when list is refreshed
         currentlySelectedItem = null;
         currentlySelectedButton = null;
         currentlySelectedType = "";
@@ -89,7 +89,6 @@ public class ListManager : MonoBehaviour
     private void CreateSaveItem(string saveName)
     {
         GameObject newItem = Instantiate(saveItemPrefab, content);
-
         SaveItemManager saveItemManager = newItem.GetComponent<SaveItemManager>();
 
         string raw = PlayerPrefs.GetString($"SavedArray_{selectedModelIndex}_{saveName}");
@@ -120,17 +119,19 @@ public class ListManager : MonoBehaviour
             saveItemManager.SetData(saveName, new int[0], "");
         }
 
-        // Assign sprites for buttons
+        // Assign sprites
         saveItemManager.runNormalSprite = runNormalSprite;
         saveItemManager.runSelectedSprite = runSelectedSprite;
         saveItemManager.viewNormalSprite = viewNormalSprite;
         saveItemManager.viewSelectedSprite = viewSelectedSprite;
 
+        // Setup buttons, including AddToList integration
         saveItemManager.SetupButtons(
             saveName,
             DeleteSave,
             OnRunButtonClicked,
-            OnViewButtonClicked
+            OnViewButtonClicked,
+            AddSaveToListPanel
         );
     }
 
@@ -152,15 +153,13 @@ public class ListManager : MonoBehaviour
             currentlySelectedType = "";
         }
 
-        // Refresh list (to possibly show "no saves" prefab)
         PopulateList();
     }
 
     private void OnRunButtonClicked(string saveName, Button runBtn)
     {
         int[] values = LoadSave(saveName);
-        ApplySavedValues(values);
-        bluetoothCommandConstructor.ConstructSaveCommand(values);
+        ApplySavedValuesExternal(values, true);
 
         SaveItemManager itemManager = runBtn.GetComponentInParent<SaveItemManager>();
         if (itemManager != null)
@@ -172,7 +171,7 @@ public class ListManager : MonoBehaviour
     private void OnViewButtonClicked(string saveName, Button viewBtn)
     {
         int[] values = LoadSave(saveName);
-        ApplySavedValues(values);
+        ApplySavedValuesExternal(values, false); // runCommand = false
 
         SaveItemManager itemManager = viewBtn.GetComponentInParent<SaveItemManager>();
         if (itemManager != null)
@@ -238,6 +237,37 @@ public class ListManager : MonoBehaviour
             case 3:
                 armInputHandler6Parts.ApplySavedValues(values);
                 break;
+        }
+    }
+
+    // External access for SaveListManager
+    public int[] LoadSaveExternal(string saveName)
+    {
+        return LoadSave(saveName);
+    }
+
+    public void ApplySavedValuesExternal(int[] values, bool runCommand)
+    {
+        // ✅ Always apply the saved values to the robot arm
+        ApplySavedValues(values);
+
+        // Only send Bluetooth command if runCommand = true
+        if (runCommand && bluetoothCommandConstructor != null)
+        {
+            bluetoothCommandConstructor.ConstructSaveCommand(values);
+        }
+    }
+
+    // ✅ Open AddToListPanel for this save
+    private void AddSaveToListPanel(string saveName)
+    {
+        if (addToListPanelManager != null)
+        {
+            addToListPanelManager.Open(saveName);
+        }
+        else
+        {
+            Debug.LogWarning("AddToListPanelManager not assigned in ListManager!");
         }
     }
 }

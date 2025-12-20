@@ -2,7 +2,7 @@ using UnityEngine;
 using TMPro;
 using UnityEngine.UI;
 
-public class EncryptionManager : MonoBehaviour, IHideablePanel
+public class EncryptionManager : MonoBehaviour
 {
     [Header("UI Components")]
     public AdvancedDropdown encryptionDropdown; 
@@ -23,7 +23,8 @@ public class EncryptionManager : MonoBehaviour, IHideablePanel
 
     private void Start()
     {
-        encryptionTypeIndex = PlayerPrefs.GetInt("EncryptionTypeIndex", 0);
+        // USING REGISTRY FOR DEFAULTS
+        encryptionTypeIndex = PlayerPrefsKeyRegistry.GetInt("EncryptionTypeIndex");
 
         if (encryptionDropdown != null)
         {
@@ -31,11 +32,17 @@ public class EncryptionManager : MonoBehaviour, IHideablePanel
             encryptionDropdown.onChangedValue += OnEncryptionChanged;
         }
 
-        aesManager.SetKey(PlayerPrefs.GetString("AESKey", ""));
-        desManager.SetKey(PlayerPrefs.GetString("DESKey", ""));
+        // USING REGISTRY FOR DEFAULTS
+        if (aesManager != null)
+            aesManager.SetKey(PlayerPrefsKeyRegistry.GetString("AESKey"));
+        if (desManager != null)
+            desManager.SetKey(PlayerPrefsKeyRegistry.GetString("DESKey"));
 
-        keyInputField.onValueChanged.AddListener(OnKeyInputChanged);
-        keyInputField.onEndEdit.AddListener(_ => OnSetKeyClicked());
+        if (keyInputField != null)
+        {
+            keyInputField.onValueChanged.AddListener(OnKeyInputChanged);
+            keyInputField.onEndEdit.AddListener(_ => OnSetKeyClicked());
+        }
 
         UpdateKeyStatus();
         UpdateButtonVisibility();
@@ -82,8 +89,13 @@ public class EncryptionManager : MonoBehaviour, IHideablePanel
     {
         keyPanel.SetActive(true);
 
-        PanelManager.Instance.RegisterPanel(this);
+        PanelManager.Instance.PushPanel(
+            key: keyPanel,
+            hide: HidePanel,      // Pass the existing HidePanel method
+            isActive: IsPanelActive  // Pass the existing IsPanelActive method
+        );
         
+
         // Handle "None" encryption type
         if (encryptionTypeIndex == 0)
         {
@@ -96,10 +108,11 @@ public class EncryptionManager : MonoBehaviour, IHideablePanel
         // Otherwise, show input field and load saved key
         keyInputField.gameObject.SetActive(true);
 
+        // USING REGISTRY FOR DEFAULTS
         string currentKey = encryptionTypeIndex switch
         {
-            1 => PlayerPrefs.GetString("AESKey", ""),
-            2 => PlayerPrefs.GetString("DESKey", ""),
+            1 => PlayerPrefsKeyRegistry.GetString("AESKey"),
+            2 => PlayerPrefsKeyRegistry.GetString("DESKey"),
             _ => ""
         };
 
@@ -118,13 +131,16 @@ public class EncryptionManager : MonoBehaviour, IHideablePanel
         }
     }
 
+    // This method is now called by PanelManager's 'hide' delegate
     public void HidePanel()
     {
         keyPanel.SetActive(false);
     }
 
+    // This method is now called by PanelManager's 'isActive' delegate
     public bool IsPanelActive()
     {
+        if (keyPanel == null) return false;
         return keyPanel.activeSelf;
     }
 
@@ -200,14 +216,16 @@ public class EncryptionManager : MonoBehaviour, IHideablePanel
         }
         else if (hasKey)
         {
+            // USING REGISTRY FOR DEFAULTS
             string key = encryptionTypeIndex switch
             {
-                1 => PlayerPrefs.GetString("AESKey", "[Hidden]"),
-                2 => PlayerPrefs.GetString("DESKey", "[Hidden]"),
+                1 => PlayerPrefsKeyRegistry.GetString("AESKey"),
+                2 => PlayerPrefsKeyRegistry.GetString("DESKey"),
                 _ => "[Unknown]"
             };
 
-            keyStatusText.text = $"Key Set: {key}";
+            // To avoid showing the key, let's just confirm it's set
+            keyStatusText.text = $"Key Set"; // Simplified: "Key Set: {key}"
             keyStatusText.color = Color.green;
         }
         else

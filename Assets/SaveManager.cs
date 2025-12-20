@@ -46,7 +46,20 @@ public class AllModelsSaveData
     }
 }
 
-public class SaveManager : MonoBehaviour, IHideablePanel
+[Serializable]
+public class CombinedExportData
+{
+    public AllModelsSaveData allModelsSaves;
+    public GroupedSerializableDictionary allSaveLists;
+
+    public CombinedExportData(AllModelsSaveData saves, GroupedSerializableDictionary lists)
+    {
+        this.allModelsSaves = saves;
+        this.allSaveLists = lists;
+    }
+}
+
+public class SaveManager : MonoBehaviour
 {
     public GameObject popupPanel;
     public TMP_InputField inputField;
@@ -63,10 +76,13 @@ public class SaveManager : MonoBehaviour, IHideablePanel
     private int selectedModelIndex; // Model index
 
     private SaveDataWrapper lastImportedData;
+    
+    public ListManager listManager; // Assign in inspector
 
     void Start()
     {
-        popupPanel.SetActive(false);
+        if (popupPanel != null)
+            popupPanel.SetActive(false);
 
         if (closeButton != null)
             closeButton.onClick.AddListener(CloseButtonPressed);
@@ -79,7 +95,6 @@ public class SaveManager : MonoBehaviour, IHideablePanel
             importAllButton.onClick.AddListener(ImportAllSavesFromFile);
 
         selectedModelIndex = PlayerPrefs.GetInt("SelectedModelIndex", 0);
-        Debug.Log("Selected Model Index: " + selectedModelIndex);
 
         if (popupSaveButton != null)
             popupSaveButton.onClick.AddListener(StartSavingProcess);
@@ -102,7 +117,12 @@ public class SaveManager : MonoBehaviour, IHideablePanel
         popupPanel.SetActive(true);
         inputField.text = "";
 
-        PanelManager.Instance.RegisterPanel(this);
+        PanelManager.Instance.PushPanel(
+            key: popupPanel,
+            hide: HidePanel,      // Pass the existing HidePanel method
+            isActive: IsPanelActive  // Pass the existing IsPanelActive method
+        );
+        
     }
 
     public void StartSavingProcess()
@@ -119,7 +139,7 @@ public class SaveManager : MonoBehaviour, IHideablePanel
         HidePanel();
     }
 
-    private string GenerateUniqueName(string baseName, HashSet<string> existingNames)
+    public string GenerateUniqueName(string baseName, HashSet<string> existingNames)
     {
         if (!existingNames.Contains(baseName)) return baseName;
 
@@ -134,7 +154,7 @@ public class SaveManager : MonoBehaviour, IHideablePanel
         return newName;
     }
 
-    private string GenerateDefaultName()
+    public string GenerateDefaultName()
     {
         int count = 1;
         HashSet<string> names = GetAllSaveNames(selectedModelIndex);
@@ -149,7 +169,7 @@ public class SaveManager : MonoBehaviour, IHideablePanel
         return name;
     }
 
-    private HashSet<string> GetAllSaveNames(int modelIndex)
+    public HashSet<string> GetAllSaveNames(int modelIndex)
     {
         string raw = PlayerPrefs.GetString(GetSaveListKey(modelIndex), "");
         return new HashSet<string>(raw.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries).Select(n => n.Trim()));
@@ -191,11 +211,56 @@ public class SaveManager : MonoBehaviour, IHideablePanel
         Debug.Log($"Saved data: {saveString}");
     }
 
+    /// <summary>
+    /// Saves a new entry using custom values passed as parameters, 
+    /// instead of reading from the current sliders.
+    /// </summary>
+    /// <param name="modelIndex">The model index to save under.</param>
+    /// <param name="saveName">The unique name for the save.</param>
+    /// <param name="customSaveValues">The list of values (including claw state) to save.</param>
+    public void SaveCustomArray(int modelIndex, string saveName, List<int> customSaveValues)
+    {
+        // 1. Add name to the list of save names
+        var names = GetAllSaveNames(modelIndex).ToList();
+        if (!names.Contains(saveName))
+        {
+            names.Add(saveName);
+            PlayerPrefs.SetString(GetSaveListKey(modelIndex), string.Join(",", names));
+        }
+
+        // 2. Get current date
+        string dateString = DateTime.Now.ToString("dddd, dd.MM.yyyy - HH·mm");
+
+        // 3. Create the save string using the provided values
+        // The customSaveValues list already includes the claw state
+        string saveString = $"{saveName}:{string.Join(",", customSaveValues)};{dateString}";
+        
+        // 4. Save to PlayerPrefs
+        PlayerPrefs.SetString(GetSaveKey(modelIndex, saveName), saveString);
+        PlayerPrefs.Save();
+
+        Debug.Log($"Saved custom data: {saveString}");
+        
+        // 5. Notify the SaveListManager to refresh its view
+        // (This is good practice so the new save appears immediately)
+        var saveListManager = FindFirstObjectByType<SaveListManager>();
+        if (saveListManager != null)
+        {
+            // Assuming SaveListManager has a method to reload all data
+            // Based on your import code, this seems correct.
+            saveListManager.LoadFromPlayerPrefs(); 
+        }
+        
+        listManager.PopulateList();
+    }
+
+    // This method is now called by PanelManager's 'hide' delegate
     public void HidePanel()
     {
         popupPanel.SetActive(false);
     }
-
+    
+    // This method is now called by PanelManager's 'isActive' delegate
     public bool IsPanelActive()
     {
         return popupPanel.activeSelf;
@@ -204,7 +269,6 @@ public class SaveManager : MonoBehaviour, IHideablePanel
     public void UpdateSelectedModelIndex(int newIndex)
     {
         selectedModelIndex = newIndex;
-        Debug.Log("Selected Model Index Updated in SaveManager: " + selectedModelIndex);
     }
 
     public void Toast(string message)
@@ -239,7 +303,6 @@ public class SaveManager : MonoBehaviour, IHideablePanel
     }
 
     // ----------- EXPORT ALL ------------
-
     public void ExportAllSavesToFile()
     {
 #if UNITY_ANDROID || UNITY_IOS
@@ -279,14 +342,28 @@ public class SaveManager : MonoBehaviour, IHideablePanel
             allModelsSaveData.Add(new SaveDataWrapper(modelIndex, entries));
         }
 
-        if (allModelsSaveData.All(wrapper => wrapper.entries.Count == 0))
+        // Get grouped lists (if present)
+        var saveListManager = FindFirstObjectByType<SaveListManager>();
+        Dictionary<int, Dictionary<string, SaveListData>> groupedLists = new Dictionary<int, Dictionary<string, SaveListData>>();
+        if (saveListManager != null)
+            groupedLists = saveListManager.GetGroupedLists();
+
+        bool hasAnySaves = allModelsSaveData.Any(w => w.entries.Count > 0);
+        bool hasAnyLists = groupedLists.Any(kv => kv.Value != null && kv.Value.Count > 0);
+
+        if (!hasAnySaves && !hasAnyLists)
         {
-            Toast("No saves to export.");
+            Toast("No saves or lists to export.");
             return;
         }
 
-        string json = JsonUtility.ToJson(new AllModelsSaveData(allModelsSaveData), true);
-        string path = Path.Combine(Application.persistentDataPath, $"AllModelsSaves_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.json");
+        var allModelsWrapper = new AllModelsSaveData(allModelsSaveData);
+        var groupedWrapper = new GroupedSerializableDictionary(groupedLists);
+
+        var combined = new CombinedExportData(allModelsWrapper, groupedWrapper);
+
+        string json = JsonUtility.ToJson(combined, true);
+        string path = Path.Combine(Application.persistentDataPath, $"AllData_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.json");
 
         File.WriteAllText(path, json);
         Debug.Log($"Export saved to: {path}");
@@ -301,7 +378,6 @@ public class SaveManager : MonoBehaviour, IHideablePanel
     }
 
     // ----------- IMPORT ALL ------------
-
     public void ImportAllSavesFromFile()
     {
 #if UNITY_ANDROID || UNITY_IOS
@@ -324,48 +400,64 @@ public class SaveManager : MonoBehaviour, IHideablePanel
         try
         {
             string json = File.ReadAllText(path);
-            AllModelsSaveData allModelsWrapper = JsonUtility.FromJson<AllModelsSaveData>(json);
+            CombinedExportData imported = JsonUtility.FromJson<CombinedExportData>(json);
 
-            if (allModelsWrapper?.allModelsSaves == null || allModelsWrapper.allModelsSaves.Count == 0)
+            if (imported == null)
             {
-                Toast("Imported file has no valid save data.");
+                Toast("Imported file has no valid data.");
                 return;
             }
 
-            // Optional: Clear all existing saves for models 0-3 before import
+            // First clear existing saves
             ClearAllModelsSaves();
 
-            foreach (var modelSaveWrapper in allModelsWrapper.allModelsSaves)
+            // Import saves
+            if (imported.allModelsSaves?.allModelsSaves != null)
             {
-                int modelIndex = modelSaveWrapper.modelIndex;
-                if (modelSaveWrapper.entries == null) continue;
-
-                var importedNames = new HashSet<string>();
-
-                foreach (var entry in modelSaveWrapper.entries)
+                foreach (var modelSaveWrapper in imported.allModelsSaves.allModelsSaves)
                 {
-                    if (entry.saveName == null || entry.values == null) continue;
+                    int modelIndex = modelSaveWrapper.modelIndex;
+                    if (modelSaveWrapper.entries == null) continue;
 
-                    string valuesStr = string.Join(",", entry.values);
-                    string saveString = $"{entry.saveName}:{valuesStr};{entry.dateString}";
+                    var importedNames = new HashSet<string>();
 
-                    PlayerPrefs.SetString(GetSaveKey(modelIndex, entry.saveName), saveString);
-                    importedNames.Add(entry.saveName);
+                    foreach (var entry in modelSaveWrapper.entries)
+                    {
+                        if (entry.saveName == null || entry.values == null) continue;
+
+                        string valuesStr = string.Join(",", entry.values);
+                        string saveString = $"{entry.saveName}:{valuesStr};{entry.dateString}";
+
+                        PlayerPrefs.SetString(GetSaveKey(modelIndex, entry.saveName), saveString);
+                        importedNames.Add(entry.saveName);
+                    }
+
+                    PlayerPrefs.SetString(GetSaveListKey(modelIndex), string.Join(",", importedNames));
                 }
+            }
 
-                // Update saved names list for this model index
-                PlayerPrefs.SetString(GetSaveListKey(modelIndex), string.Join(",", importedNames));
+            // Import lists (grouped)
+            if (imported.allSaveLists != null)
+            {
+                // Store the grouped lists JSON in PlayerPrefs under the same key SaveListManager expects
+                string listsJson = JsonUtility.ToJson(imported.allSaveLists);
+                PlayerPrefs.SetString("SaveListsGrouped", listsJson);
             }
 
             PlayerPrefs.Save();
 
-            Toast($"Imported saves for {allModelsWrapper.allModelsSaves.Count} models.");
-            Debug.Log($"Imported all saves from file: {path}");
+            // Notify SaveListManager to reload from PlayerPrefs
+            var saveListManager = FindFirstObjectByType<SaveListManager>();
+            if (saveListManager != null)
+                saveListManager.LoadFromPlayerPrefs();
+
+            Toast("Imported data successfully.");
+            Debug.Log($"Imported all saves & lists from file: {path}");
         }
         catch (Exception e)
         {
-            Debug.LogError($"Failed to import saves: {e.Message}");
-            Toast("Failed to import saves.");
+            Debug.LogError($"Failed to import saves/lists: {e.Message}");
+            Toast("Failed to import data.");
         }
     }
 
@@ -380,6 +472,9 @@ public class SaveManager : MonoBehaviour, IHideablePanel
             }
             PlayerPrefs.SetString(GetSaveListKey(modelIndex), "");
         }
+
+        // also clear grouped lists key so import starts clean
+        PlayerPrefs.SetString("SaveListsGrouped", "");
         PlayerPrefs.Save();
     }
 }

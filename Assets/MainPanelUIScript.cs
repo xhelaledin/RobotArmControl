@@ -2,108 +2,142 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
-public class MainPanelUIScript : MonoBehaviour, IHideablePanel, IHideablePanel2
+public class MainPanelUIScript : MonoBehaviour
 {
     [Header("Panels")]
-    public GameObject savedPositionsPanel;
     public GameObject controlPanel;
+    public GameObject savedPositionsPanel;
+    public GameObject listPanel;
 
-    public GameObject savedPositionsHeaderPanel;
     public GameObject controlHeaderPanel;
+    public GameObject savedPositionsHeaderPanel;
+    public GameObject listHeaderPanel;
 
     [Header("Images & Sprites")]
-    public Image image1;
-    public Image image2;
-    public Sprite sprite1;
-    public Sprite sprite2;
-    public Sprite sprite3;
-    public Sprite sprite4;
+    public Image controlImage;
+    public Image savedImage;
+    public Image listImage;
+
+    public Sprite controlFilled;
+    public Sprite controlOutline;
+    public Sprite savedFilled;
+    public Sprite savedOutline;
+    public Sprite listFilled;
+    public Sprite listOutline;
 
     [Header("TMP Texts")]
-    public TextMeshProUGUI text1;
-    public TextMeshProUGUI text2;
+    public TextMeshProUGUI controlText;
+    public TextMeshProUGUI savedText;
+    public TextMeshProUGUI listText;
 
     [Header("Classes")]
     public RobotArmSelection robotArmSelection;
     public ListManager listManager;
+    public SaveListManager saveListManager;
 
-    // Show/Hide Saved Positions Panel
+    // --- Show Saved Positions Panel ---
     public void ShowSavedPositionsPanel()
     {
-        if (savedPositionsPanel != null)
-            savedPositionsPanel.SetActive(true);
+        if (savedPositionsPanel != null) savedPositionsPanel.SetActive(true);
+        if (controlPanel != null) controlPanel.SetActive(false);
+        if (listPanel != null) listPanel.SetActive(false);
 
-        PanelManager.Instance.RegisterPanel(this);
+        if (controlImage != null) controlImage.sprite = controlOutline;
+        if (savedImage != null) savedImage.sprite = savedFilled;
+        if (listImage != null) listImage.sprite = listOutline;
+
+        if (savedText != null) savedText.color = new Color32(0xF4, 0xF4, 0xF4, 0xFF);
+        if (controlText != null) controlText.color = new Color32(0xAA, 0xAA, 0xAA, 0xFF);
+        if (listText != null) listText.color = new Color32(0xAA, 0xAA, 0xAA, 0xFF);
+
+        savedPositionsHeaderPanel.SetActive(true);
+        controlHeaderPanel.SetActive(false);
+        listHeaderPanel.SetActive(false);
+
+        PanelManager.Instance?.PushPanel(
+            key: savedPositionsPanel,
+            hide: HidePanel,
+            isActive: IsPanelActive
+        );
+
+        listManager.PopulateList();
     }
 
+    // This is the 'hide' delegate for savedPositionsPanel
     public void HidePanel()
     {
-        if (savedPositionsPanel != null)
-            savedPositionsPanel.SetActive(false);
-
-        ShowControlPanel();
+        if (savedPositionsPanel != null) savedPositionsPanel.SetActive(false);
+        ShowControlPanel(); // Return to control panel
         robotArmSelection.MoveModelByStartValues();
     }
 
+    // This is the 'isActive' delegate for savedPositionsPanel
     public bool IsPanelActive()
     {
-        return savedPositionsPanel.activeSelf;
+        return savedPositionsPanel != null && savedPositionsPanel.activeSelf;
     }
 
-    // Show/Hide Control Panel with sprite & color swaps
+    // --- Show Control Panel ---
+    // This is the base panel, it does not get registered with the PanelManager.
     public void ShowControlPanel()
     {
-        if (controlPanel != null)
-        {
-            controlPanel.SetActive(true);
+        if (savedPositionsPanel != null) savedPositionsPanel.SetActive(false);
+        if (controlPanel != null) controlPanel.SetActive(true);
+        if (listPanel != null) listPanel.SetActive(false);
 
-            if (image1 != null && sprite1 != null)
-                image1.sprite = sprite1;
+        if (controlImage != null) controlImage.sprite = controlFilled;
+        if (savedImage != null) savedImage.sprite = savedOutline;
+        if (listImage != null) listImage.sprite = listOutline;
 
-            if (image2 != null && sprite4 != null)
-                image2.sprite = sprite4;
-
-            if (text1 != null)
-                text1.color = new Color32(0xF4, 0xF4, 0xF4, 0xFF);   // #f4f4f4
-
-            if (text2 != null)
-                text2.color = new Color32(0xAA, 0xAA, 0xAA, 0xFF);   // #aaaaaa
-        }
+        if (savedText != null) savedText.color = new Color32(0xAA, 0xAA, 0xAA, 0xFF);
+        if (controlText != null) controlText.color = new Color32(0xF4, 0xF4, 0xF4, 0xFF);
+        if (listText != null) listText.color = new Color32(0xAA, 0xAA, 0xAA, 0xFF);
 
         controlHeaderPanel.SetActive(true);
         savedPositionsHeaderPanel.SetActive(false);
-
-        PanelManager.Instance.RegisterPanel(this);
+        listHeaderPanel.SetActive(false);
     }
 
-    public void HidePanel2()
+    // --- Show List Panel ---
+    public void ShowListPanel()
     {
-        if (controlPanel != null)
-        {
-            controlPanel.SetActive(false);
+        if (savedPositionsPanel != null) savedPositionsPanel.SetActive(false);
+        if (controlPanel != null) controlPanel.SetActive(false);
+        if (listPanel != null) listPanel.SetActive(true);
 
-            if (image1 != null && sprite2 != null)
-                image1.sprite = sprite2;
+        if (controlImage != null) controlImage.sprite = controlOutline;
+        if (savedImage != null) savedImage.sprite = savedOutline;
+        if (listImage != null) listImage.sprite = listFilled;
 
-            if (image2 != null && sprite3 != null)
-                image2.sprite = sprite3;
+        if (savedText != null) savedText.color = new Color32(0xAA, 0xAA, 0xAA, 0xFF);
+        if (controlText != null) controlText.color = new Color32(0xAA, 0xAA, 0xAA, 0xFF);
+        if (listText != null) listText.color = new Color32(0xF4, 0xF4, 0xF4, 0xFF);
 
-            if (text1 != null)
-                text1.color = new Color32(0xAA, 0xAA, 0xAA, 0xFF);   // #aaaaaa
-
-            if (text2 != null)
-                text2.color = new Color32(0xF4, 0xF4, 0xF4, 0xFF);   // #f4f4f4
-        }
-
+        listHeaderPanel.SetActive(true);
+        savedPositionsHeaderPanel.SetActive(false);
         controlHeaderPanel.SetActive(false);
-        savedPositionsHeaderPanel.SetActive(true);
 
-        ShowSavedPositionsPanel();
-        listManager.PopulateList();
+
+        PanelManager.Instance?.PushPanel(
+            key: listPanel,
+            hide: HidePanel3,
+            isActive: IsPanelActive3
+        );
+
     }
-    
-    public bool IsPanelActive2()
+
+    // This is the 'hide' delegate for listPanel
+    public void HidePanel3()
     {
-        return controlPanel.activeSelf;
+        if (listPanel != null) listPanel.SetActive(false);
+        ShowControlPanel(); // Return to control panel
+        robotArmSelection.MoveModelByStartValues();
+        saveListManager.StopActiveCoroutine();
+    }
+
+    // This is the 'isActive' delegate for listPanel
+    public bool IsPanelActive3()
+    {
+        return listPanel != null && listPanel.activeSelf;
     }
 }

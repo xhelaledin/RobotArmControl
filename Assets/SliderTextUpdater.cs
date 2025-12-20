@@ -9,30 +9,35 @@ public class SliderTextUpdater : MonoBehaviour
     public TextMeshProUGUI s1min;
     public TextMeshProUGUI s1max;
     public TextMeshProUGUI s1currentvalue;
+    public TextMeshProUGUI s1name;
 
     [Header("Slider 2")]
     public Slider slider2;
     public TextMeshProUGUI s2min;
     public TextMeshProUGUI s2max;
     public TextMeshProUGUI s2currentvalue;
+    public TextMeshProUGUI s2name;
 
     [Header("Slider 3")]
     public Slider slider3;
     public TextMeshProUGUI s3min;
     public TextMeshProUGUI s3max;
     public TextMeshProUGUI s3currentvalue;
+    public TextMeshProUGUI s3name;
 
     [Header("Slider 4")]
     public Slider slider4;
     public TextMeshProUGUI s4min;
     public TextMeshProUGUI s4max;
     public TextMeshProUGUI s4currentvalue;
+    public TextMeshProUGUI s4name;
 
     [Header("Slider 5")]
     public Slider slider5;
     public TextMeshProUGUI s5min;
     public TextMeshProUGUI s5max;
     public TextMeshProUGUI s5currentvalue;
+    public TextMeshProUGUI s5name;
 
     [Header("Slider 1 Start")]
     public Slider sliderstart1;
@@ -59,6 +64,10 @@ public class SliderTextUpdater : MonoBehaviour
     private TextMeshProUGUI[] _minTexts;
     private TextMeshProUGUI[] _maxTexts;
     private TextMeshProUGUI[] _currentTexts;
+    private TextMeshProUGUI[] _nameTexts;
+    private Vector2[] _defaultNameAnchoredPositions;
+    private Vector2[] _defaultMinAnchoredPositions;
+    private Vector2[] _defaultMaxAnchoredPositions;
     private bool[] _flipped; // Tracks FlipDirection for each slider
 
     // Start sliders arrays (only current values matter)
@@ -68,28 +77,61 @@ public class SliderTextUpdater : MonoBehaviour
     [Header("Other")]
     public RobotArmSelection robotArmSelection;
 
+    // Target anchored position when flipped (converted from your Vector3)
+    private readonly Vector2 flippedNameAnchoredPos = new Vector2(-58.81668f, -6.267036f);
+
     private void Awake()
     {
+        // build arrays
         _sliders = new[] { slider1, slider2, slider3, slider4, slider5 };
         _minTexts = new[] { s1min, s2min, s3min, s4min, s5min };
         _maxTexts = new[] { s1max, s2max, s3max, s4max, s5max };
         _currentTexts = new[] { s1currentvalue, s2currentvalue, s3currentvalue, s4currentvalue, s5currentvalue };
+        _nameTexts = new[] { s1name, s2name, s3name, s4name, s5name };
         _flipped = new bool[5];
 
         _startSliders = new[] { sliderstart1, sliderstart2, sliderstart3, sliderstart4, sliderstart5 };
         _startCurrentTexts = new[] { s1startcurrentvalue, s2startcurrentvalue, s3startcurrentvalue, s4startcurrentvalue, s5startcurrentvalue };
 
-        // Wire value-changed listeners (for main sliders)
+        // Save default anchored positions for min/max/name (use anchoredPosition so it works properly with UI)
+        _defaultNameAnchoredPositions = new Vector2[_nameTexts.Length];
+        _defaultMinAnchoredPositions = new Vector2[_minTexts.Length];
+        _defaultMaxAnchoredPositions = new Vector2[_maxTexts.Length];
+
+        for (int i = 0; i < _nameTexts.Length; i++)
+        {
+            if (_nameTexts[i] != null)
+                _defaultNameAnchoredPositions[i] = _nameTexts[i].rectTransform.anchoredPosition;
+            else
+                _defaultNameAnchoredPositions[i] = Vector2.zero;
+
+            if (_minTexts[i] != null)
+                _defaultMinAnchoredPositions[i] = _minTexts[i].rectTransform.anchoredPosition;
+            else
+                _defaultMinAnchoredPositions[i] = Vector2.zero;
+
+            if (_maxTexts[i] != null)
+                _defaultMaxAnchoredPositions[i] = _maxTexts[i].rectTransform.anchoredPosition;
+            else
+                _defaultMaxAnchoredPositions[i] = Vector2.zero;
+        }
+
+        // Apply stored preferences first (ensures UI state is correct on start)
+        RefreshAllFromPrefs();
+        LoadStartValuesFromPrefs();
+
+        // Wire value-changed listeners AFTER applying prefs (avoids race conditions on startup)
         for (int i = 0; i < _sliders.Length; i++)
         {
-            int idx = i; // capture
+            int idx = i;
             if (_sliders[idx] != null)
             {
+                // Use SetValueWithoutNotify if you later set value programmatically and want to avoid recursion;
+                // here we just ensure changes by the user update the UI text.
                 _sliders[idx].onValueChanged.AddListener(_ => UpdateCurrentValueText(idx));
             }
         }
 
-        // Wire value-changed listeners (for start sliders → ONLY update their current text)
         for (int i = 0; i < _startSliders.Length; i++)
         {
             int idx = i;
@@ -98,15 +140,10 @@ public class SliderTextUpdater : MonoBehaviour
                 _startSliders[idx].onValueChanged.AddListener(_ => UpdateStartCurrentValueText(idx));
             }
         }
-
-        // Initial load from PlayerPrefs
-        RefreshAllFromPrefs();
-        LoadStartValuesFromPrefs(); // <-- load start sliders from PlayerPrefs
     }
 
     private void OnDestroy()
     {
-        // Clean up listeners
         for (int i = 0; i < _sliders.Length; i++)
         {
             if (_sliders[i] != null)
@@ -159,7 +196,6 @@ public class SliderTextUpdater : MonoBehaviour
         string modelKey = GetModelKeyPrefix();
         int selectedModelIndex = PlayerPrefs.GetInt("SelectedModelIndex", 0);
 
-        // Decide how many sliders are valid for this model
         int validSliders = 0;
         switch (selectedModelIndex)
         {
@@ -201,9 +237,12 @@ public class SliderTextUpdater : MonoBehaviour
 
     public void ApplyPrefsToSlider(int index)
     {
+        if (index < 0 || index >= _sliders.Length) return;
+
         var slider = _sliders[index];
         var minText = _minTexts[index];
         var maxText = _maxTexts[index];
+        var nameText = _nameTexts[index];
 
         if (slider == null)
         {
@@ -227,34 +266,60 @@ public class SliderTextUpdater : MonoBehaviour
         slider.wholeNumbers = true;
         slider.minValue = low;
         slider.maxValue = high;
+
+        // Clamp and apply start value
         slider.value = Mathf.Clamp(start, low, high);
 
-        // Store flip state for this index
+        // Remember flip state
         _flipped[index] = flipped;
 
-        // Update endpoint labels (swap when flipped)
-        if (minText != null) minText.text = (flipped ? high : low).ToString();
-        if (maxText != null) maxText.text = (flipped ? low : high).ToString();
+        // Set slider direction (visual only)
+        slider.direction = flipped ? Slider.Direction.RightToLeft : Slider.Direction.LeftToRight;
 
-        // Update current value text
+        // ALWAYS set the numeric min/max text to the actual low/high values.
+        // We swap label positions so the visual left/right will show the correct numbers.
+        if (minText != null) minText.text = low.ToString();
+        if (maxText != null) maxText.text = high.ToString();
+
+        // Swap min/max anchored positions if flipped, otherwise restore defaults
+        if (minText != null && maxText != null)
+        {
+            if (flipped)
+            {
+                minText.rectTransform.anchoredPosition = _defaultMaxAnchoredPositions[index];
+                maxText.rectTransform.anchoredPosition = _defaultMinAnchoredPositions[index];
+            }
+            else
+            {
+                minText.rectTransform.anchoredPosition = _defaultMinAnchoredPositions[index];
+                maxText.rectTransform.anchoredPosition = _defaultMaxAnchoredPositions[index];
+            }
+        }
+
+        // Update name text (moves to given anchored pos when flipped)
+        if (nameText != null)
+        {
+            nameText.rectTransform.anchoredPosition = flipped ? flippedNameAnchoredPos : _defaultNameAnchoredPositions[index];
+        }
+
+        // Show the actual slider.value in the current-value text (matches Inspector)
         UpdateCurrentValueText(index);
 
-        robotArmSelection.MoveModelByStartValues();
+        // Keep rest of system informed
+        robotArmSelection?.MoveModelByStartValues();
     }
 
     private void UpdateCurrentValueText(int index)
     {
+        if (index < 0 || index >= _sliders.Length) return;
+
         var slider = _sliders[index];
         var curText = _currentTexts[index];
         if (slider == null || curText == null) return;
 
-        int low = Mathf.RoundToInt(slider.minValue);
-        int high = Mathf.RoundToInt(slider.maxValue);
+        // Show the slider's numeric value (rounded) — matches the Inspector's value
         int raw = Mathf.RoundToInt(slider.value);
-
-        // If flipped, display the mirrored value so the number matches the swapped endpoints
-        int display = _flipped[index] ? (low + high - raw) : raw;
-        curText.text = display.ToString();
+        curText.text = raw.ToString();
     }
 
     public void UpdateStartCurrentValueText(int index)

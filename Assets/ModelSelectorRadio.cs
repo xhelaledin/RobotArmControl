@@ -3,12 +3,13 @@ using UnityEngine.UI;
 using Lean.Gui;
 using System.Collections.Generic;
 
-public class ModelSelectorRadio : MonoBehaviour, IHideablePanel
+public class ModelSelectorRadio : MonoBehaviour
 {
     [Header("Core References")]
     public RobotArmSelection robotArmSelection;
     public SaveManager saveManager;
     public ListManager listManager;
+    public SaveListManager saveListManager;
     public SliderScaleManager sliderScaleManager;
     public GameObject settingsPanel;
 
@@ -61,10 +62,13 @@ public class ModelSelectorRadio : MonoBehaviour, IHideablePanel
             return;
 
         // 1. Turn ON the new toggle (with or without animation)
-        if (playTransitions)
-            modelToggles[newIndex].TurnOn();
-        else
-            modelToggles[newIndex].On = true;
+        if (newIndex >= 0 && newIndex < modelToggles.Count)
+        {
+            if (playTransitions)
+                modelToggles[newIndex].TurnOn();
+            else
+                modelToggles[newIndex].On = true;
+        }
 
         // 2. Turn OFF siblings under our control
         isProgrammatic = true;
@@ -85,27 +89,41 @@ public class ModelSelectorRadio : MonoBehaviour, IHideablePanel
         robotArmSelection?.UpdateSelectedModelIndex();
         saveManager?.UpdateSelectedModelIndex(currentIndex);
         listManager?.PopulateList();
+        
+        // This is safe to call now because SaveListManager uses Awake() to init
+        if(saveListManager != null)
+            saveListManager.RefreshUI();
 
         // 5. Swap preview sprite
-        if (previewImage != null && currentIndex < modelSprites.Count)
+        if (previewImage != null && currentIndex >= 0 && currentIndex < modelSprites.Count)
             previewImage.sprite = modelSprites[currentIndex];
 
-        robotArmSelection.MoveModelByStartValues();
+        robotArmSelection?.MoveModelByStartValues();
     }
 
     // Optional panel show/hide
     public void ShowSettingsPanel()
     {
         settingsPanel.SetActive(true);
-        PanelManager.Instance.RegisterPanel(this);
+        
+        // --- UPDATED: Replaced RegisterPanel with PushPanel ---
+        PanelManager.Instance.PushPanel(
+            key: settingsPanel,
+            hide: HidePanel,      // Pass the existing HidePanel method
+            isActive: IsPanelActive  // Pass the existing IsPanelActive method
+        );
+
     }
 
+    // This method is now called by PanelManager's 'hide' delegate
     public void HidePanel()
     {
         settingsPanel.SetActive(false);
-        sliderScaleManager.ReloadSelectedModel();
+        if (sliderScaleManager != null)
+            sliderScaleManager.ReloadSelectedModel();
     }
 
+    // This method is now called by PanelManager's 'isActive' delegate
     public bool IsPanelActive()
     {
         return settingsPanel.activeSelf;
