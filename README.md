@@ -1,56 +1,96 @@
-# Unity Robot Arm Control
+# Robot Arm Control App
 
-A Unity application for controlling a physical robot arm, including real-time 3D model visualization. The app sends commands to the robot arm and mirrors its movements in the 3D space, providing a seamless interface for testing and controlling your robotic system.
+A professional Unity-based Android application for controlling physical robot arms. This app acts as a digital twin, allowing you to control your hardware via **Bluetooth Serial** while visualizing movements in real-time on a 3D model.
 
-**Note:** This application will work as expected only if the robot arm hardware configuration and firmware code are compatible with the app's setup. Ensure that your robot arm uses the same configuration and code for communication to function properly.
+## 📥 Download App
+**[Download the latest APK (v1.0.0) here](https://github.com/xhelaledin/RobotArmControl/releases/latest)**
 
-## Features
-- Real-time control of a physical robot arm
-- 3D model simulation for precise movement visualization
-- Bluetooth communication for wireless control
-- Configurable arm joint angles
-- Intuitive Unity UI for easy control
-- Android support only
-- Save, view, run, and delete saved positions
-- AES-128 encrypted Bluetooth communication with user-provided 16-character key
+---
 
-## Prerequisites
-- Unity 2021.3 or newer
-- Robot arm with Bluetooth capability (e.g., ESP32 or Arduino-based)
-- BluetoothManager script for Unity
-- 3D model of the robot arm (FBX or OBJ format)
-- TextMesh Pro (for UI elements)
+## ✨ Key Features
 
-## Installation
-1. Clone this repository:
-   ```bash
-   git clone https://github.com/xhelaledin/RobotArmControl.git
-   cd RobotArmControl
-   ```
-2. Open the project in Unity.
-3. Import the required 3D model for the robot arm.
-4. Ensure the BluetoothManager script is properly configured.
-5. Connect your physical robot arm via Bluetooth.
+### 🎮 Control & Visualization
+* **Real-time Digital Twin:** The 3D model mirrors your physical robot instantly.
+* **Smart UI:** The interface automatically adapts to your hardware. When you touch a slider, the corresponding part on the 3D model highlights with an outline so you know exactly what you are moving.
+* **Multi-Model Support:** The app supports 4 distinct robot configurations. The sliders change automatically based on your selection:
+    * **4-Axis** (3 Sliders)
+    * **5-Axis** (4 Sliders)
+    * **5b-Axis** (4 Sliders)
+    * **6-Axis** (5 Sliders)
 
-## Releases
-You can download the latest release from the [Releases page](https://github.com/xhelaledin/RobotArmControl/releases).
+### 🤖 Automation & Saves
+* **SaveLists:** Create lists of saved positions to build automation routines.
+* **Custom Start:** Configure specific visual start positions for the 3D model.
+* **Data Isolation:** Each model type (e.g., 4-Axis vs 6-Axis) has its own separate storage for saves, savelists, and visual settings.
 
-## Usage
-- Use the on-screen controls to send commands to the robot arm.
-- The 3D model will update in real-time to match the physical arm's position.
-- Adjust joint angles through sliders or input fields as needed.
-- Save and manage positions using the built-in position manager.
+### 🔒 Security & Connectivity
+* **Bluetooth Serial:** Uses standard Bluetooth Serial Port Profile (SPP) for wide compatibility with HC-05, ESP32, and Arduino Bluetooth modules.
+* **Flexible Encryption:** Choose the security level that fits your project:
+    1.  **None:** Standard raw communication.
+    2.  **AES-128:** High-security encryption (Requires 16-character key).
+    3.  **DES:** Standard encryption (Requires key).
+* **Code Helper:** The app provides ready-to-use Arduino code snippets for all 3 encryption modes.
 
-## Communication Protocol
-- The app sends encrypted commands via AES-128 with a 16-character key provided by the user.
-- - The key should be the same with the one present in the microcontroller.
-- Ensure the robot firmware is compatible with the app's command structure.
+### 💾 Backup & Restore
+* **JSON System:** Deeply integrated Import/Export system.
+    * **Settings:** Backup visual and app settings by category.
+    * **Saves:** Backup your position libraries to JSON files. Note that importing saves replaces the current list.
 
-## Contributing
-Feel free to open issues or submit pull requests to improve this project.
+---
+
+## 📱 Installation Guide
+
+1.  Download the `.apk` file from the **[Releases Page](https://github.com/xhelaledin/RobotArmControl/releases)**.
+2.  Transfer the file to your Android device (or download it directly on the device).
+3.  Tap the file to install.
+    * *Note: You may need to allow "Install from Unknown Sources" in your Android settings if this is your first time installing a GitHub APK.*
+4.  Open the app and grant the required Bluetooth permissions.
+
+---
+
+## 🛠 Hardware Setup & Connection
+
+To use this app, your robot arm needs a microcontroller (like Arduino or ESP32) with a Bluetooth Serial module.
+
+### 1. Firmware Setup
+* Open the App and navigate to the **Code Examples** section.
+* Select your preferred encryption mode (None, AES, or DES).
+* Copy the example code provided in the app and upload it to your microcontroller.
+
+### 2. Encryption Keys (Critical)
+If you select **AES** or **DES** encryption, security is paramount:
+* You must define a secret Key in your Arduino code.
+* **IMPORTANT:** You must enter **exactly the same Key** into the App's encryption settings field. If the keys do not match, the robot will not understand the commands.
+
+### 3. Connecting
+1.  Pair your Android phone with your Bluetooth module (e.g., HC-05) via your phone's Android Bluetooth settings.
+2.  Open the App.
+3.  Select your Robot Model.
+4.  Connect to the device from the list.
+
+---
+
+## 👨‍💻 For Developers
+
+If you wish to modify the source code or build the project yourself:
+
+### Prerequisites
+* Unity 2021.3 or newer
+* Android Build Support module
+
+### Building from Source
+1.  Clone this repository:
+    ```bash
+    git clone [https://github.com/xhelaledin/RobotArmControl.git](https://github.com/xhelaledin/RobotArmControl.git)
+    ```
+2.  Open the project in Unity.
+3.  Import your specific robot arm models (FBX/OBJ) if different from the defaults.
+4.  Build specifically for the **Android** platform.
+
+---
 
 ## License
 This project is licensed under the MIT License. See the LICENSE file for details.
 
 ## Contact
-For support or inquiries, please reach out at [xhelaledin@gmail.com].
+For support or inquiries, please reach out at [contact@xhelaledin.com].
